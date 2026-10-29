@@ -10,7 +10,6 @@ public class BankersAlgorithm {
     private final int[][] allocation, max, need;
     private final int[] available;
 
-    /** Validates and copies the data; throws IllegalArgumentException for inconsistent input. */
     public BankersAlgorithm(int[][] allocation, int[][] max, int[] available) {
         int p = allocation.length, r = available.length;
         this.allocation = new int[p][]; this.max = new int[p][]; this.need = new int[p][r];
@@ -37,7 +36,7 @@ public class BankersAlgorithm {
     // ---------------- Safety algorithm ----------------
     public SafetyResult checkSafety() {
         int p = allocation.length, r = available.length;
-        int[] work = available.clone();                 // Work = Available
+        int[] work = available.clone();
         boolean[] finished = new boolean[p];            // Finish[i] = false
         SafetyResult result = new SafetyResult();
         int step = 1;
@@ -72,14 +71,14 @@ public class BankersAlgorithm {
         RequestResult res = new RequestResult();
         res.log.add("Request by P" + p + " = " + format(req));
         boolean ok1 = fits(req, need[p]);
-        res.log.add("Step 1: Request <= Need?  " + format(req) + " <= " + format(need[p]) + "  " + (ok1 ? "YES" : "NO"));
+        res.log.add("Step 1: Is the request within what P" + p + " still needs?  Request <= Need?  " + format(req) + " <= " + format(need[p]) + "  " + (ok1 ? "YES" : "NO"));
         if (!ok1) {
             res.status = Status.EXCEEDED_MAX;
-            res.log.add("Error: P" + p + " has exceeded its maximum claim.");
+            res.log.add("Error: P" + p + " is asking for more than its maximum claim, so the request is rejected.");
             return res;
         }
         boolean ok2 = fits(req, available);
-        res.log.add("Step 2: Request <= Available?  " + format(req) + " <= " + format(available) + "  " + (ok2 ? "YES" : "NO"));
+        res.log.add("Step 2: Are the resources free right now?  Request <= Available?  " + format(req) + " <= " + format(available) + "  " + (ok2 ? "YES" : "NO"));
         if (!ok2) {
             res.status = Status.MUST_WAIT;
             res.log.add("P" + p + " must wait, the resources are not available.");
@@ -90,7 +89,7 @@ public class BankersAlgorithm {
         int[] av2 = available.clone();
         for (int j = 0; j < r; j++) { av2[j] -= req[j]; a2[p][j] += req[j]; }
         res.after = new BankersAlgorithm(a2, max, av2);
-        res.log.add("Step 3: Pretend to allocate:");
+        res.log.add("Step 3: Pretend to give the resources, then test if the system is still safe:");
         res.log.add("   Available = " + format(available) + " - " + format(req) + " = " + format(av2));
         res.log.add("   Allocation of P" + p + " = " + format(allocation[p]) + " + " + format(req) + " = " + format(a2[p]));
         res.log.add("   Need of P" + p + " = " + format(need[p]) + " - " + format(req) + " = " + format(res.after.need[p]));
