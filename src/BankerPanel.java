@@ -8,19 +8,29 @@ import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableColumnModel;
 import java.awt.*;
 
-
+/**
+ * Banker's Algorithm tab. One table in the lecture-slide format:
+ *   Process | Allocation (A..) | Max (A..) | Available (A..) | Need (A..)
+ * You type the TOTAL of each resource. Available = Total - (sum of everyone's Allocation) is calculated and shown on
+ * the P0 row. Check Safety then fills the Available group with the Work (free resources) when each process is checked.
+ * The checking is continuous: a process that does not fit is skipped, and after the last process the table goes
+ * back around, so skipped processes are listed again in extra rows below until they finish (or none can).
+ * The result line gives the safe sequence, or says the state is not safe.
+ */
 public class BankerPanel extends ModulePanel {
     private static final Color LINE = Color.DARK_GRAY, HEADER = new Color(0xEE, 0xEE, 0xEE);
 
-    private final JTextField np = new JTextField("5", 4), nr = new JTextField("4", 4), reqField = new JTextField("0 4 2 0", 12);
-    private final JComboBox<String> reqProc = new JComboBox<>();
-    private final JTable tbl = new JTable();
+    private final JTextField np = new JTextField("5", 4), nr = new JTextField("4", 4);
+    private final JPanel totalsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 3));   // one box per resource type
+    private JTextField[] totals = new JTextField[0];
+    /** The table. It keeps our two-level header: a plain JTable would swap it for the ordinary header when shown. */
+    private final JTable tbl = new JTable() {
+        @Override protected void configureEnclosingScrollPane() { }
+    };
     private DefaultTableModel model;
-    private int p = 0, m = 0;                 // current number of processes and resource types
+    private int p = 0, m = 0;                 // number of processes (typed rows) and resource types
     private boolean updating = false;         // true while the program (not the user) changes cells
-    private final DefaultTableModel trace = Util.readOnlyModel(
-            new String[]{"Step", "Round", "Process", "Need", "Work (free now)", "Need <= Work?", "What happens"});
-    private final JTextArea result = new JTextArea();
+    private final JLabel verdict = new JLabel("Click Check Safety to see the result.", SwingConstants.CENTER);
 
     // column helpers: Process | Allocation | Max | Available | Need
     private int allocCol(int j) { return 1 + j; }
@@ -39,11 +49,7 @@ public class BankerPanel extends ModulePanel {
         r1.add(new JLabel("Processes (n):")); r1.add(np);
         r1.add(new JLabel("Resource types (m):")); r1.add(nr);
         r1.add(gen); r1.add(rnd); r1.add(sample); r1.add(chk);
-        JPanel r2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 3));
-        JButton req = new JButton("Request Resources");
-        r2.add(new JLabel("Resource request:  Process")); r2.add(reqProc);
-        r2.add(new JLabel("Request (one value per resource, e.g. 0 4 2 0):")); r2.add(reqField); r2.add(req);
-        top.add(r1); top.add(r2);
+        top.add(r1); top.add(totalsPanel);
         add(top, BorderLayout.NORTH);
 
         // ----- the slide-style table with a two-level header -----
@@ -53,43 +59,23 @@ public class BankerPanel extends ModulePanel {
         header.add(tbl.getTableHeader(), BorderLayout.CENTER);
         JScrollPane tableScroll = new JScrollPane(tbl);
         tableScroll.setColumnHeaderView(header);
-        tableScroll.setPreferredSize(new Dimension(500, 24 * 2 + 24 * 6 + 4));
-        JLabel hint = new JLabel("<html><body style='width:760px'>Type <b>Allocation</b> and <b>Max</b>, and the starting <b>Available</b> on the P0 row. "
-                + "Need = Max - Allocation is calculated. <b>Check Safety</b> fills the other Available cells: they show the "
-                + "Work (resources free) when that process is checked.</body></html>");
-        hint.setBorder(BorderFactory.createEmptyBorder(2, 4, 4, 4));
         JPanel tablePanel = new JPanel(new BorderLayout());
         tablePanel.setBorder(BorderFactory.createTitledBorder("Banker's table"));
         tablePanel.add(tableScroll, BorderLayout.CENTER);
-        tablePanel.add(hint, BorderLayout.SOUTH);
+        add(tablePanel, BorderLayout.CENTER);
 
-        result.setEditable(false);
-        result.setLineWrap(true);
-        result.setWrapStyleWord(true);
-        result.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
-        JTable traceTable = new JTable(trace);
-        traceTable.setRowHeight(22);
-        traceTable.setAutoResizeMode(JTable.AUTO_RESIZE_LAST_COLUMN);
-        int[] w = {45, 55, 65, 95, 120, 95, 700};
-        for (int i = 0; i < w.length; i++) traceTable.getColumnModel().getColumn(i).setPreferredWidth(w[i]);
-        DefaultTableCellRenderer center = new DefaultTableCellRenderer();
-        center.setHorizontalAlignment(SwingConstants.CENTER);
-        for (int i = 0; i < 6; i++) traceTable.getColumnModel().getColumn(i).setCellRenderer(center);
-        JScrollPane resultScroll = Util.scroll(result, "Result");
-        resultScroll.setPreferredSize(new Dimension(500, 120));
-        JScrollPane traceScroll = Util.scroll(traceTable, "Safety algorithm, step by step");
-        traceScroll.setPreferredSize(new Dimension(500, 190));
-        JSplitPane bottom = new JSplitPane(JSplitPane.VERTICAL_SPLIT, traceScroll, resultScroll);
-        bottom.setResizeWeight(0.65);
-        JSplitPane split = new JSplitPane(JSplitPane.VERTICAL_SPLIT, tablePanel, bottom);
-        split.setResizeWeight(0.4);
-        add(split, BorderLayout.CENTER);
+        // ----- the result -----
+        verdict.setFont(verdict.getFont().deriveFont(Font.BOLD, 20f));
+        verdict.setBorder(BorderFactory.createEmptyBorder(8, 8, 10, 8));
+        JPanel resultPanel = new JPanel(new BorderLayout());
+        resultPanel.setBorder(BorderFactory.createTitledBorder("Result"));
+        resultPanel.add(verdict, BorderLayout.CENTER);
+        add(resultPanel, BorderLayout.SOUTH);
 
         gen.addActionListener(e -> generateSafely());
         rnd.addActionListener(e -> randomizeData());
         sample.addActionListener(e -> loadSample());
         chk.addActionListener(e -> runSimulation());
-        req.addActionListener(e -> requestResources());
         generate();
     }
 
@@ -110,7 +96,7 @@ public class BankerPanel extends ModulePanel {
                 setBackground(HEADER);
                 setForeground(Color.BLACK);
                 setFont(getFont().deriveFont(Font.BOLD));
-                setBorder(groupBorder(c, LINE));
+                setBorder(groupBorder(c, 0));
                 return this;
             }
         });
@@ -119,28 +105,31 @@ public class BankerPanel extends ModulePanel {
                 super.getTableCellRendererComponent(t, v, sel, false, r, c);
                 setHorizontalAlignment(c == 0 ? SwingConstants.LEFT : SwingConstants.CENTER);
                 setFont(getFont().deriveFont(c == 0 ? Font.BOLD : Font.PLAIN));
-                setBorder(groupBorder(c, LINE));
+                setBorder(groupBorder(c, r == p && t.getRowCount() > p ? 2 : 0));   // a line where the table "goes back around"
                 return this;
             }
         });
         tbl.getColumnModel().addColumnModelListener(new TableColumnModelListener() {
-            public void columnAdded(TableColumnModelEvent e) { tbl.getTableHeader().getParent().repaint(); }
-            public void columnRemoved(TableColumnModelEvent e) { tbl.getTableHeader().getParent().repaint(); }
+            public void columnAdded(TableColumnModelEvent e) { repaintHeader(); }
+            public void columnRemoved(TableColumnModelEvent e) { repaintHeader(); }
             public void columnMoved(TableColumnModelEvent e) { }
-            public void columnMarginChanged(javax.swing.event.ChangeEvent e) {
-                if (tbl.getTableHeader().getParent() != null) tbl.getTableHeader().getParent().repaint();
-            }
+            public void columnMarginChanged(javax.swing.event.ChangeEvent e) { repaintHeader(); }
             public void columnSelectionChanged(ListSelectionEvent e) { }
         });
     }
 
-    /** A thick line on the left of the first column of each group (Allocation, Max, Available, Need). */
-    private MatteBorder groupBorder(int c, Color color) {
-        boolean first = m > 0 && (c == allocCol(0) || c == maxCol(0) || c == availCol(0) || c == needCol(0));
-        return BorderFactory.createMatteBorder(0, first ? 2 : 0, 0, 0, color);
+    private void repaintHeader() {
+        Container parent = tbl.getTableHeader().getParent();
+        if (parent != null) parent.repaint();
     }
 
-    /** The blue top header row (Allocation / Max / Available / Need) that spans several columns. */
+    /** A thick line on the left of the first column of each group (Allocation, Max, Available, Need). */
+    private MatteBorder groupBorder(int c, int topLine) {
+        boolean first = m > 0 && (c == allocCol(0) || c == maxCol(0) || c == availCol(0) || c == needCol(0));
+        return BorderFactory.createMatteBorder(topLine, first ? 2 : 0, 0, 0, LINE);
+    }
+
+    /** The top header row (Allocation / Max / Available / Need) that spans several columns. */
     private class GroupBar extends JComponent {
         GroupBar() { setPreferredSize(new Dimension(100, 24)); }
         @Override protected void paintComponent(Graphics g) {
@@ -176,8 +165,8 @@ public class BankerPanel extends ModulePanel {
         cols[0] = "Process";
         for (int g = 0; g < 4; g++) for (int j = 0; j < m; j++) cols[1 + g * m + j] = Util.resourceName(j);
         model = new DefaultTableModel(cols, 0) {
-            public boolean isCellEditable(int row, int c) {
-                return (c >= allocCol(0) && c < availCol(0)) || (row == 0 && c >= availCol(0) && c < needCol(0));
+            public boolean isCellEditable(int row, int c) {      // the extra "go back around" rows are results, not input
+                return row < p && c >= allocCol(0) && c < availCol(0);
             }
         };
         for (int i = 0; i < p; i++) {
@@ -186,27 +175,15 @@ public class BankerPanel extends ModulePanel {
             for (int c = 1; c < cols.length; c++) row[c] = (c < availCol(0)) ? "0" : (c < needCol(0) ? (i == 0 ? "0" : "") : "0");
             model.addRow(row);
         }
-        model.addTableModelListener(e -> {          // the user edited a cell: old workings are out of date
-            if (updating) return;
-            updating = true;
-            clearWorking();
-            computeLiveNeed();
-            updating = false;
-            tbl.repaint();
-        });
+        model.addTableModelListener(e -> userEdited());
         tbl.setModel(model);
-        tbl.getColumnModel().getColumn(0).setMinWidth(60);
-        tbl.getColumnModel().getColumn(0).setPreferredWidth(60);
+        tbl.getColumnModel().getColumn(0).setMinWidth(110);
+        tbl.getColumnModel().getColumn(0).setPreferredWidth(110);
         for (int c = 1; c < model.getColumnCount(); c++) tbl.getColumnModel().getColumn(c).setPreferredWidth(40);
-        reqProc.removeAllItems();
-        for (int i = 0; i < p; i++) reqProc.addItem("P" + i);
-        StringBuilder zeros = new StringBuilder();
-        for (int j = 0; j < m; j++) zeros.append(j == 0 ? "" : " ").append("0");
-        reqField.setText(zeros.toString());
-        trace.setRowCount(0);
-        result.setText(intro());
-        tbl.getTableHeader().getParent().revalidate();
-        tbl.getTableHeader().getParent().repaint();
+        buildTotals();
+        verdict.setText("Click Check Safety to see the result.");
+        Container hp = tbl.getTableHeader().getParent();
+        if (hp != null) { hp.revalidate(); hp.repaint(); }
     }
 
     private boolean generateSafely() {
@@ -224,8 +201,12 @@ public class BankerPanel extends ModulePanel {
                 model.setValueAt("" + mx, i, maxCol(j));
                 model.setValueAt("" + Util.RNG.nextInt(mx + 1), i, allocCol(j));
             }
-        for (int j = 0; j < m; j++) model.setValueAt("" + Util.RNG.nextInt(6), 0, availCol(j));
-        computeLiveNeed();
+        for (int j = 0; j < m; j++) {                       // total = what is allocated + a few free ones
+            int used = 0;
+            for (int i = 0; i < p; i++) used += Integer.parseInt((String) model.getValueAt(i, allocCol(j)));
+            totals[j].setText("" + (used + Util.RNG.nextInt(6)));
+        }
+        computeLive();
         updating = false;
         tbl.repaint();
     }
@@ -236,15 +217,13 @@ public class BankerPanel extends ModulePanel {
         generate();
         int[][] a = {{0, 0, 1, 2}, {1, 0, 0, 0}, {1, 3, 5, 4}, {0, 6, 3, 2}, {0, 0, 1, 4}};
         int[][] mx = {{0, 0, 1, 2}, {1, 7, 5, 0}, {2, 3, 5, 6}, {0, 6, 5, 2}, {0, 6, 5, 6}};
-        int[] av = {1, 5, 2, 0};
+        int[] total = {3, 14, 12, 12};                      // Available = total - allocated = 1 5 2 0
         updating = true;
         for (int i = 0; i < 5; i++)
             for (int j = 0; j < 4; j++) { model.setValueAt("" + a[i][j], i, allocCol(j)); model.setValueAt("" + mx[i][j], i, maxCol(j)); }
-        for (int j = 0; j < 4; j++) model.setValueAt("" + av[j], 0, availCol(j));
-        computeLiveNeed();
+        for (int j = 0; j < 4; j++) totals[j].setText("" + total[j]);
+        computeLive();
         updating = false;
-        reqProc.setSelectedIndex(1);
-        reqField.setText("0 4 2 0");
         tbl.repaint();
     }
 
@@ -259,8 +238,62 @@ public class BankerPanel extends ModulePanel {
                 a[i][j] = Util.parseInt(Util.str(model.getValueAt(i, allocCol(j))), "Allocation of " + where, 0);
                 mx[i][j] = Util.parseInt(Util.str(model.getValueAt(i, maxCol(j))), "Max of " + where, 0);
             }
-        for (int j = 0; j < m; j++) av[j] = Util.parseInt(Util.str(model.getValueAt(0, availCol(j))), "Available " + Util.resourceName(j), 0);
+        for (int j = 0; j < m; j++) {
+            int total = Util.parseInt(totals[j].getText(), "Total " + Util.resourceName(j), 0), used = 0;
+            for (int i = 0; i < p; i++) used += a[i][j];
+            if (used > total)
+                throw new IllegalArgumentException("Total " + Util.resourceName(j) + " is " + total + " but " + used
+                        + " is already allocated. The total cannot be less than the allocation.");
+            av[j] = total - used;                           // Available = Total - sum of Allocation
+        }
         return new BankersAlgorithm(a, mx, av);
+    }
+
+    /** The user typed something: old workings are out of date, so rebuild Need and Available. */
+    private void userEdited() {
+        if (updating) return;
+        updating = true;
+        clearWorking();
+        computeLive();
+        updating = false;
+        tbl.repaint();
+    }
+
+    private void computeLive() { computeLiveNeed(); computeLiveAvailable(); }
+
+    /** Available (P0 row) = Total - sum of Allocation, shown as soon as the numbers are valid (blank otherwise). */
+    private void computeLiveAvailable() {
+        for (int j = 0; j < m; j++) {
+            String av = "";
+            try {
+                int total = Integer.parseInt(totals[j].getText().trim()), used = 0;
+                for (int i = 0; i < p; i++) used += Integer.parseInt(Util.str(model.getValueAt(i, allocCol(j))).trim());
+                if (total >= used) av = "" + (total - used);
+            } catch (NumberFormatException ignored) { }
+            model.setValueAt(av, 0, availCol(j));
+        }
+    }
+
+    /** One box per resource type for the total number of instances in the whole system. */
+    private void buildTotals() {
+        totalsPanel.removeAll();
+        totals = new JTextField[m];
+        JLabel title = new JLabel("Total resources:");
+        title.setToolTipText("How many of each resource exist in the whole system. Available = Total - everyone's Allocation.");
+        totalsPanel.add(title);
+        for (int j = 0; j < m; j++) {
+            totals[j] = new JTextField("0", 4);
+            totals[j].setHorizontalAlignment(SwingConstants.CENTER);
+            totals[j].getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
+                public void insertUpdate(javax.swing.event.DocumentEvent e) { userEdited(); }
+                public void removeUpdate(javax.swing.event.DocumentEvent e) { userEdited(); }
+                public void changedUpdate(javax.swing.event.DocumentEvent e) { userEdited(); }
+            });
+            totalsPanel.add(new JLabel(Util.resourceName(j) + ":"));
+            totalsPanel.add(totals[j]);
+        }
+        totalsPanel.revalidate();
+        totalsPanel.repaint();
     }
 
     /** Fills Need as soon as Allocation and Max are valid numbers (blank otherwise). */
@@ -284,75 +317,48 @@ public class BankerPanel extends ModulePanel {
         }
     }
 
-    /** Removes the Work values and colours (keeps the starting Available typed on the P0 row). */
+    /** Removes the extra rows and the Work values (the P0 row keeps the calculated Available). */
     private void clearWorking() {
+        for (int r = model.getRowCount() - 1; r >= p; r--) model.removeRow(r);
         for (int i = 0; i < p; i++) {
-            for (int j = 0; j < m; j++) {
-                if (i > 0) model.setValueAt("", i, availCol(j));
-            }
+            model.setValueAt("P" + i, i, 0);
+            if (i > 0) for (int j = 0; j < m; j++) model.setValueAt("", i, availCol(j));
         }
     }
 
-    /** Puts into each row the Work at the first moment that process is checked, like the lecture slide. */
-    private void fillWorking(BankersAlgorithm b, BankersAlgorithm.SafetyResult s) {
+    /**
+     * Shows the safety check in the table, like the lecture slide. Each typed row P0..Pn shows the Work at the first
+     * moment that process is checked. When the check goes back around to a process that was skipped, that process
+     * is added again as a new row at the bottom, with the Work at that moment.
+     */
+    private void fillWorking(BankersAlgorithm.SafetyResult s) {
         clearWorking();
-        boolean[] done = new boolean[p];
+        boolean[] seen = new boolean[p];
         for (BankersAlgorithm.TraceRow t : s.trace) {
             int i = t.process;
-            if (done[i]) continue;
-            done[i] = true;
-            for (int j = 0; j < m; j++) {
-                if (i > 0) model.setValueAt("" + t.workBefore[j], i, availCol(j));
+            if (!seen[i]) {                                      // first time: fill the process's own row
+                seen[i] = true;
+                for (int j = 0; j < m; j++) if (i > 0) model.setValueAt("" + t.workBefore[j], i, availCol(j));
+                model.setValueAt(t.ok ? "P" + i : "P" + i + " (skipped)", i, 0);
+            } else {                                             // the check came back to a skipped process
+                Object[] row = new Object[1 + 4 * m];
+                row[0] = "P" + i + (t.ok ? " (again)" : " (skipped)");
+                for (int j = 0; j < m; j++) {
+                    row[allocCol(j)] = model.getValueAt(i, allocCol(j));
+                    row[maxCol(j)] = model.getValueAt(i, maxCol(j));
+                    row[availCol(j)] = "" + t.workBefore[j];
+                    row[needCol(j)] = "" + t.need[j];
+                }
+                model.addRow(row);
             }
         }
-    }
-
-    private void showTrace(BankersAlgorithm.SafetyResult s) {
-        trace.setRowCount(0);
-        int round = 1, prev = -1;
-        for (BankersAlgorithm.TraceRow t : s.trace) {
-            if (t.process <= prev) round++;
-            prev = t.process;
-            String P = "P" + t.process, need = BankersAlgorithm.format(t.need), work = BankersAlgorithm.format(t.workBefore);
-            String text;
-            if (t.ok) {
-                text = P + " fits. It runs to the end and gives back " + BankersAlgorithm.format(alloc(t.process))
-                        + ", so free becomes " + BankersAlgorithm.format(t.workAfter) + ".";
-            } else {
-                text = P + " needs more than is free (short on " + shortOn(t.need, t.workBefore) + "). Skip it for now.";
-            }
-            trace.addRow(new Object[]{t.step, round, P, need, work, t.ok ? "Yes" : "No (skip)", text});
-        }
-    }
-
-    private int[] alloc(int i) {
-        int[] a = new int[m];
-        for (int j = 0; j < m; j++) a[j] = Integer.parseInt(Util.str(model.getValueAt(i, allocCol(j))).trim());
-        return a;
-    }
-
-    private String shortOn(int[] need, int[] work) {
-        StringBuilder sb = new StringBuilder();
-        for (int j = 0; j < need.length; j++)
-            if (need[j] > work[j]) sb.append(sb.length() == 0 ? "" : ", ").append(Util.resourceName(j));
-        return sb.toString();
-    }
-
-    private String intro() {
-        return "HOW THE SAFETY CHECK WORKS\n"
-                + "1. Need = Max - Allocation: what each process may still ask for.\n"
-                + "2. Work starts as Available: the resources free right now.\n"
-                + "3. Find a process whose Need fits in Work. It can run to the end and then gives back its Allocation, so Work grows.\n"
-                + "4. Repeat. If every process finishes, the state is SAFE. If none of the rest fits, it is NOT safe.\n\n"
-                + "Click Check Safety to see it.";
     }
 
     private String verdict(BankersAlgorithm.SafetyResult s) {
-        if (s.safe) return "RESULT: SYSTEM IS SAFE.\nSafe sequence: " + s.sequenceText()
-                + "\n(Every process can finish if they run in this order.)";
-        StringBuilder sb = new StringBuilder("RESULT: SYSTEM IS NOT SAFE (possible deadlock).\nThese processes cannot finish:");
+        if (s.safe) return "SAFE.   Safe sequence: " + s.sequenceText();
+        StringBuilder sb = new StringBuilder("NOT SAFE.   Stuck:");
         for (int i : s.stuck) sb.append(" P").append(i);
-        return sb.append("\n(Each of them needs more than what is free, and no other process can give resources back.)").toString();
+        return sb.append("   (possible deadlock)").toString();
     }
 
     // ---------- actions ----------
@@ -363,49 +369,9 @@ public class BankerPanel extends ModulePanel {
         BankersAlgorithm.SafetyResult s = b.checkSafety();
         updating = true;
         showNeed(b);
-        fillWorking(b, s);
+        fillWorking(s);
         updating = false;
-        showTrace(s);
-        result.setText("Work = Available = " + BankersAlgorithm.format(b.getAvailable())
-                + "\nWe look for a process whose Need fits in Work, let it finish, and add its Allocation to Work.\n"
-                + "The Available column shows the Work at the moment each process is checked. "
-                + "The step-by-step table lists every check in order.\n\n" + verdict(s));
-        result.setCaretPosition(0);
-        tbl.repaint();
-    }
-
-    private void requestResources() {
-        BankersAlgorithm b;
-        BankersAlgorithm.RequestResult res;
-        try {
-            b = readState();
-            String text = reqField.getText().trim();
-            if (text.isEmpty()) throw new IllegalArgumentException("Request is blank. Enter one value per resource type.");
-            String[] parts = text.split("[\\s,]+");
-            if (parts.length != m) throw new IllegalArgumentException("Request needs exactly " + m + " values (got " + parts.length + ").");
-            int[] req = new int[m];
-            for (int j = 0; j < m; j++) req[j] = Util.parseInt(parts[j], "Request " + Util.resourceName(j), 0);
-            res = b.request(reqProc.getSelectedIndex(), req);
-        } catch (IllegalArgumentException ex) { Util.error(this, ex.getMessage()); return; }
-
-        StringBuilder sb = new StringBuilder();
-        for (String line : res.log) sb.append(line).append('\n');
-        updating = true;
-        if (res.status == BankersAlgorithm.Status.GRANTED) {
-            BankersAlgorithm a = res.after;                      // apply the new state to the table
-            for (int i = 0; i < a.getProcessCount(); i++) {
-                int[] al = a.getAllocation(i);
-                for (int j = 0; j < al.length; j++) model.setValueAt("" + al[j], i, allocCol(j));
-            }
-            int[] av = a.getAvailable();
-            for (int j = 0; j < av.length; j++) model.setValueAt("" + av[j], 0, availCol(j));
-            showNeed(a);
-            fillWorking(a, res.safety);
-        } else { showNeed(b); clearWorking(); }
-        updating = false;
-        if (res.safety != null) showTrace(res.safety); else trace.setRowCount(0);
-        result.setText(sb.toString());
-        result.setCaretPosition(0);
+        verdict.setText(verdict(s));
         tbl.repaint();
     }
 }

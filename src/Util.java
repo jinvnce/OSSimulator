@@ -1,6 +1,7 @@
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.Component;
+import java.math.BigDecimal;
 import java.util.Random;
 
 /** Shared helpers: input validation and small Swing utilities. Not instantiable. */
@@ -21,6 +22,17 @@ public final class Util {
         }
         if (v < min) throw new IllegalArgumentException(name + " must be at least " + min + " (got " + v + ").");
         return v;
+    }
+
+    /** Parses a number that may be big and may have decimals. Commas and spaces are ignored, so 1,000,000.5 works. */
+    public static BigDecimal parseDecimal(String s, String name) {
+        s = s == null ? "" : s.trim().replace(",", "").replace("_", "").replace(" ", "");
+        if (s.isEmpty()) throw new IllegalArgumentException(name + " is blank.");
+        try {
+            return new BigDecimal(s);
+        } catch (NumberFormatException e) {
+            throw new IllegalArgumentException(name + " must be a number (got \"" + s + "\").");
+        }
     }
 
     /** Resource names follow the slides: A, B, C, D ... (R26, R27 ... after Z). */

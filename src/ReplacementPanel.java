@@ -1,5 +1,4 @@
 import javax.swing.*;
-import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 
 /** Page Replacement tab: FIFO / LRU / Optimal with a variable-length reference string. */
@@ -7,7 +6,7 @@ public class ReplacementPanel extends ModulePanel {
     private final JTextField refs = new JTextField(32), frames = new JTextField("3", 4), len = new JTextField("20", 4);
     private final JComboBox<PageReplacement> algo = new JComboBox<>(new PageReplacement[]{
             new FIFOReplacement(), new LRUReplacement(), new OptimalReplacement()});
-    private final JTable table = new JTable();
+    private final ReplacementGrid grid = new ReplacementGrid();
     private final JLabel summary = new JLabel("Run a simulation to see the results.");
 
     public ReplacementPanel() {
@@ -23,10 +22,12 @@ public class ReplacementPanel extends ModulePanel {
         r2.add(new JLabel("Algorithm:")); r2.add(algo); r2.add(run);
         top.add(r1); top.add(r2);
         add(top, BorderLayout.NORTH);
-        add(Util.scroll(table, "Step-by-step frame contents"), BorderLayout.CENTER);
+        add(Util.scroll(grid, "Page replacement table"), BorderLayout.CENTER);
         add(summary, BorderLayout.SOUTH);
         rnd.addActionListener(e -> randomizeData());
         run.addActionListener(e -> runSimulation());
+        refs.setText("7 0 1 2 0 3 0 4 2 3 0 3 2 1 2 0 1 7 0 1");      // the lecture example, so the table is never empty
+        runSimulation();
     }
 
     @Override public String getTitle() { return "Page Replacement"; }
@@ -58,20 +59,7 @@ public class ReplacementPanel extends ModulePanel {
         PageReplacement alg = (PageReplacement) algo.getSelectedItem();
         PagingResult res = alg.simulate(ref, f);           // polymorphic call
 
-        String[] cols = new String[f + 3];
-        cols[0] = "Step"; cols[1] = "Page";
-        for (int k = 0; k < f; k++) cols[k + 2] = "Frame " + k;
-        cols[f + 2] = "Result";
-        DefaultTableModel m = Util.readOnlyModel(cols);
-        for (int i = 0; i < res.getSteps(); i++) {
-            Object[] row = new Object[f + 3];
-            row[0] = i + 1; row[1] = res.getPage(i);
-            int[] fr = res.getFrames(i);
-            for (int k = 0; k < f; k++) row[k + 2] = fr[k] == -1 ? "-" : fr[k];
-            row[f + 2] = res.isHit(i) ? "Hit" : "Fault";
-            m.addRow(row);
-        }
-        table.setModel(m);
+        grid.show(res, f);
         summary.setText(String.format("%s: %d references, %d page faults, %d hits, hit ratio %.1f%%",
                 alg.getName(), ref.length, res.getFaults(), res.getHits(), res.getHitRatio()));
     }

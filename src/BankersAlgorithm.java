@@ -1,15 +1,14 @@
 import java.util.*;
 
 /**
- * Banker's Algorithm (deadlock avoidance). Contains the two parts from the lecture:
- *   1. Safety algorithm        - checkSafety()
- *   2. Resource-request algorithm - request()
- * Need[i][j] = Max[i][j] - Allocation[i][j].
+ * Banker's Algorithm (deadlock avoidance): the safety algorithm, checkSafety().
+ * Need[i][j] = Max[i][j] - Allocation[i][j]. Available = Total - sum of Allocation (worked out by the panel).
  */
 public class BankersAlgorithm {
     private final int[][] allocation, max, need;
     private final int[] available;
 
+    /** Validates and copies the data; throws IllegalArgumentException for inconsistent input. */
     public BankersAlgorithm(int[][] allocation, int[][] max, int[] available) {
         int p = allocation.length, r = available.length;
         this.allocation = new int[p][]; this.max = new int[p][]; this.need = new int[p][r];
@@ -36,7 +35,7 @@ public class BankersAlgorithm {
     // ---------------- Safety algorithm ----------------
     public SafetyResult checkSafety() {
         int p = allocation.length, r = available.length;
-        int[] work = available.clone();
+        int[] work = available.clone();                 // Work = Available
         boolean[] finished = new boolean[p];            // Finish[i] = false
         SafetyResult result = new SafetyResult();
         int step = 1;
@@ -60,52 +59,6 @@ public class BankersAlgorithm {
         return result;
     }
 
-    // ---------------- Resource-request algorithm ----------------
-    /** Tests a request from process p without changing this object; the pretend state is returned in the result. */
-    public RequestResult request(int p, int[] req) {
-        int n = allocation.length, r = available.length;
-        if (p < 0 || p >= n) throw new IllegalArgumentException("Process must be between P0 and P" + (n - 1) + ".");
-        if (req.length != r) throw new IllegalArgumentException("Request needs " + r + " values (one per resource type).");
-        for (int j = 0; j < r; j++) if (req[j] < 0) throw new IllegalArgumentException("Request " + Util.resourceName(j) + " cannot be negative.");
-
-        RequestResult res = new RequestResult();
-        res.log.add("Request by P" + p + " = " + format(req));
-        boolean ok1 = fits(req, need[p]);
-        res.log.add("Step 1: Is the request within what P" + p + " still needs?  Request <= Need?  " + format(req) + " <= " + format(need[p]) + "  " + (ok1 ? "YES" : "NO"));
-        if (!ok1) {
-            res.status = Status.EXCEEDED_MAX;
-            res.log.add("Error: P" + p + " is asking for more than its maximum claim, so the request is rejected.");
-            return res;
-        }
-        boolean ok2 = fits(req, available);
-        res.log.add("Step 2: Are the resources free right now?  Request <= Available?  " + format(req) + " <= " + format(available) + "  " + (ok2 ? "YES" : "NO"));
-        if (!ok2) {
-            res.status = Status.MUST_WAIT;
-            res.log.add("P" + p + " must wait, the resources are not available.");
-            return res;
-        }
-        int[][] a2 = new int[n][];
-        for (int i = 0; i < n; i++) a2[i] = allocation[i].clone();
-        int[] av2 = available.clone();
-        for (int j = 0; j < r; j++) { av2[j] -= req[j]; a2[p][j] += req[j]; }
-        res.after = new BankersAlgorithm(a2, max, av2);
-        res.log.add("Step 3: Pretend to give the resources, then test if the system is still safe:");
-        res.log.add("   Available = " + format(available) + " - " + format(req) + " = " + format(av2));
-        res.log.add("   Allocation of P" + p + " = " + format(allocation[p]) + " + " + format(req) + " = " + format(a2[p]));
-        res.log.add("   Need of P" + p + " = " + format(need[p]) + " - " + format(req) + " = " + format(res.after.need[p]));
-        res.safety = res.after.checkSafety();
-        if (res.safety.safe) {
-            res.status = Status.GRANTED;
-            res.log.add("The new state is SAFE. Safe sequence: " + res.safety.sequenceText());
-            res.log.add("REQUEST GRANTED.");
-        } else {
-            res.status = Status.DENIED_UNSAFE;
-            res.log.add("The new state is NOT SAFE, so the old state is restored.");
-            res.log.add("REQUEST DENIED. P" + p + " must wait.");
-        }
-        return res;
-    }
-
     private boolean fits(int[] a, int[] b) {
         for (int j = 0; j < a.length; j++) if (a[j] > b[j]) return false;
         return true;
@@ -118,8 +71,6 @@ public class BankersAlgorithm {
     }
 
     // ---------------- result classes ----------------
-    public enum Status { EXCEEDED_MAX, MUST_WAIT, GRANTED, DENIED_UNSAFE }
-
     /** One check in the safety trace (one row of the lecture's example table). */
     public static class TraceRow {
         public final int step, process;
@@ -141,12 +92,5 @@ public class BankersAlgorithm {
             for (int i : sequence) sb.append(sb.length() == 0 ? "" : " -> ").append("P").append(i);
             return sb.toString();
         }
-    }
-
-    public static class RequestResult {
-        public Status status;
-        public final List<String> log = new ArrayList<>();
-        public BankersAlgorithm after;   // pretend state (null if step 1 or 2 failed)
-        public SafetyResult safety;      // safety check of the pretend state
     }
 }

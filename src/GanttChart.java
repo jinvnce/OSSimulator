@@ -6,19 +6,27 @@ import java.util.List;
 /** Gantt chart panel that draws itself progressively (animation) using a Swing timer. */
 public class GanttChart extends JPanel {
     private List<Segment> segments = new ArrayList<>();
-    private double shown = 0;
-    private int unit = 30;
+    private TimeFmt fmt;
+    private double shown = 0;            // how much of the chart is revealed, in internal time units
+    private double pxPerUnit = 1;        // pixels per internal time unit
     private javax.swing.Timer timer;
 
-    public void play(List<Segment> segs) {
+    /**
+     * @param scale decimal places of the internal numbers (used to keep the chart a sensible width:
+     *              about 30 px per input-unit of time, but never narrower than 600 px or wider than 30,000 px)
+     */
+    public void play(List<Segment> segs, TimeFmt fmt, int scale) {
         if (timer != null) timer.stop();
         segments = segs;
+        this.fmt = fmt;
         shown = 0;
-        final int total = segs.isEmpty() ? 0 : segs.get(segs.size() - 1).getEnd();
-        unit = Math.max(1, Math.min(30, 30000 / Math.max(1, total)));
-        setPreferredSize(new Dimension(total * unit + 50, 110));
+        final double total = segs.isEmpty() ? 0 : segs.get(segs.size() - 1).getEnd();
+        double inputUnits = total / Math.pow(10, scale);
+        double width = Math.max(600, Math.min(30000, inputUnits * 30));
+        pxPerUnit = total == 0 ? 1 : width / total;
+        setPreferredSize(new Dimension((int) (total * pxPerUnit) + 50, 110));
         revalidate();
-        final double step = Math.max(0.15, total / 150.0); // animation lasts about 3 seconds at most
+        final double step = Math.max(1e-9, total / 150.0);   // animation lasts about 3 seconds
         timer = new javax.swing.Timer(20, e -> {
             shown += step;
             if (shown >= total) { shown = total; timer.stop(); }
@@ -35,23 +43,34 @@ public class GanttChart extends JPanel {
     @Override
     protected void paintComponent(Graphics g) {
         super.paintComponent(g);
+        if (fmt == null) return;
         Graphics2D g2 = (Graphics2D) g;
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         FontMetrics fm = g2.getFontMetrics();
         int y = 20, h = 50;
+        int lastTickRight = Integer.MIN_VALUE;   // stops time labels from overlapping each other
         for (Segment s : segments) {
             if (s.getStart() >= shown) break;
             double e = Math.min(s.getEnd(), shown);
-            int x = 20 + s.getStart() * unit, w = (int) ((e - s.getStart()) * unit);
-            g2.setColor(colorOf(s));
-            g2.fillRect(x, y, w, h);
-            g2.setColor(Color.BLACK);
-            g2.drawRect(x, y, w, h);
-            String label = s.getLabel();
-            if (e == s.getEnd() && (s.isIdle() || w >= fm.stringWidth(label) + 6))   // the word Idle is always shown
-                g2.drawString(label, x + (w - fm.stringWidth(label)) / 2, y + h / 2 + 5);
-            if (w >= 14) g2.drawString("" + s.getStart(), x - 3, y + h + 16);
-            if (e == s.getEnd() && w >= 14) g2.drawString("" + s.getEnd(), x + w - 3, y + h + 16);
+            int x = 20 + (int) (s.getStart() * pxPerUnit), w = (int) ((e - s.getStart()) * pxPerUnit);
+            if (w > 0) {
+                g2.setColor(colorOf(s));
+                g2.fillRect(x, y, w, h);
+                g2.setColor(Color.BLACK);
+                g2.drawRect(x, y, w, h);
+                String label = s.getLabel();
+                if (e == s.getEnd() && (s.isIdle() || w >= fm.stringWidth(label) + 6))   // the word Idle is always shown
+                    g2.drawString(label, x + (w - fm.stringWidth(label)) / 2, y + h / 2 + 5);
+            }
+            lastTickRight = tick(g2, fm, fmt.format(s.getStart()), x, y + h + 16, lastTickRight);
+            if (e == s.getEnd()) lastTickRight = tick(g2, fm, fmt.format(s.getEnd()), x + w, y + h + 16, lastTickRight);
         }
+    }
+
+    private int tick(Graphics2D g2, FontMetrics fm, String text, int cx, int baseline, int lastRight) {
+        int left = cx - fm.stringWidth(text) / 2;
+        if (left <= lastRight + 4) return lastRight;
+        g2.drawString(text, left, baseline);
+        return left + fm.stringWidth(text);
     }
 }

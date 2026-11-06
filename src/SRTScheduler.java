@@ -1,25 +1,28 @@
 import java.util.*;
 
 /**
- * Shared logic for the preemptive versions of SJF (SRTF) and Priority.
- * At every arrival or completion the CPU is given to the best ready job, so a newly arrived
- * job can take the CPU away from the running one. Subclasses only supply the key to compare.
+ * Shortest Remaining Time (preemptive SJF). Whenever a job arrives or finishes, the CPU goes to the
+ * ready job with the least time still left, so a new short job can take the CPU from the running one.
  */
-public abstract class PreemptiveScheduler extends Scheduler {
-    /** Smaller key runs first. 'remaining' is the burst time the job still needs. */
-    protected abstract int key(PCB p, int remaining);
+public class SRTScheduler extends Scheduler {
+    @Override public String getName() { return "SRT"; }
+    @Override public boolean isPreemptive() { return true; }
+    @Override public String getDescription() {
+        return "Shortest Remaining Time: the job with the least time left runs. A new job that needs less time than the running job's remaining time interrupts it.";
+    }
 
     @Override
     protected void execute(List<PCB> processes, List<Segment> timeline) {
         List<PCB> byArrival = sortedByArrival(processes);
-        Map<PCB, Integer> remaining = new HashMap<>();
+        Map<PCB, Long> remaining = new HashMap<>();
         for (PCB p : byArrival) remaining.put(p, p.getBurst());
         List<PCB> ready = new ArrayList<>();
-        int t = 0, next = 0, finished = 0, n = byArrival.size();
+        long t = 0;
+        int next = 0, finished = 0, n = byArrival.size();
         while (finished < n) {
             while (next < n && byArrival.get(next).getArrival() <= t) ready.add(byArrival.get(next++));
             if (ready.isEmpty()) {                                   // CPU idle until the next arrival
-                int na = byArrival.get(next).getArrival();
+                long na = byArrival.get(next).getArrival();
                 addSegment(timeline, null, t, na);
                 t = na;
                 continue;
@@ -27,8 +30,7 @@ public abstract class PreemptiveScheduler extends Scheduler {
             PCB best = ready.get(0);
             for (PCB p : ready) if (better(p, best, remaining)) best = p;
             best.markStart(t);
-            // run until it finishes or until the next job arrives (which may preempt it)
-            int run = remaining.get(best);
+            long run = remaining.get(best);                          // run until done, or until the next arrival
             if (next < n) run = Math.min(run, byArrival.get(next).getArrival() - t);
             addSegment(timeline, best, t, t + run);
             t += run;
@@ -37,9 +39,10 @@ public abstract class PreemptiveScheduler extends Scheduler {
         }
     }
 
-    private boolean better(PCB a, PCB b, Map<PCB, Integer> remaining) {
-        int c = Integer.compare(key(a, remaining.get(a)), key(b, remaining.get(b)));
-        if (c == 0) c = Integer.compare(a.getArrival(), b.getArrival());
+    /** Least remaining time wins; ties go to the earlier arrival, then the lower id. */
+    private boolean better(PCB a, PCB b, Map<PCB, Long> remaining) {
+        int c = Long.compare(remaining.get(a), remaining.get(b));
+        if (c == 0) c = Long.compare(a.getArrival(), b.getArrival());
         if (c == 0) c = Integer.compare(a.getId(), b.getId());
         return c < 0;
     }
