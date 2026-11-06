@@ -1,6 +1,5 @@
 import java.util.*;
 
-/** Result of a page replacement run: every step plus the final page table (page -> frame). */
 public class PagingResult {
     private final List<Integer> pages = new ArrayList<>();
     private final List<int[]> frameStates = new ArrayList<>();

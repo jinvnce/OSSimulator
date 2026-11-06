@@ -2,7 +2,6 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.*;
 
-/** Draws logical memory (pages) on the left, physical memory (frames) on the right, with page-table arrows. */
 public class MemoryDiagram extends JPanel {
     private static final int H = 26, TOP = 36, LX = 20, W = 200, PX = 360;
     private PageTable table;
@@ -33,7 +32,6 @@ public class MemoryDiagram extends JPanel {
         g2.setFont(g2.getFont().deriveFont(Font.PLAIN));
 
         int pages = table.getPageCount(), frames = table.getFrameCount();
-        // arrows first, so the blocks are drawn on top
         for (int p = 0; p < pages; p++) {
             int f = table.getFrameOf(p);
             if (f == -1) continue;

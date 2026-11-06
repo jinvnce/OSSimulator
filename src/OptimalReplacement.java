@@ -1,12 +1,8 @@
 import java.util.*;
 
-/**
- * Optimal: evicts the page that will not be used for the longest time.
- * Next-use positions are precomputed once, so the run is O(n * frames) instead of O(n^2 * frames).
- */
 public class OptimalReplacement extends PageReplacement {
-    private int[] nextUse;      // nextUse[i] = next index after i where ref[i] appears again
-    private int[] slotNext;     // for each frame, when its page is needed next
+    private int[] nextUse;
+    private int[] slotNext;
 
     @Override public String getName() { return "Optimal"; }
 

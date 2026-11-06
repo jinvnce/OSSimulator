@@ -4,10 +4,7 @@ import java.awt.*;
 import java.util.*;
 import java.util.List;
 
-/**
- * Disk Scheduling tab: FIFO, DDTF, LOOK, Elevator (SCAN) and C-SCAN.
- * Shows each seek, the total head movement and the average per seek, and can compare all algorithms.
- */
+
 public class DiskPanel extends ModulePanel {
     private final JTextField requests = new JTextField("98 183 37 122 14 124 65 67", 34),
             head = new JTextField("53", 5), maxCyl = new JTextField("199", 5), len = new JTextField("8", 4);
@@ -90,7 +87,6 @@ public class DiskPanel extends ModulePanel {
         } catch (IllegalArgumentException ex) { Util.error(this, ex.getMessage()); }
     }
 
-    /** Parsed inputs, validated against the disk size. */
     private static class Input { int head, max; List<Integer> reqs = new ArrayList<>(); }
 
     private Input read() {

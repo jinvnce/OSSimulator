@@ -1,11 +1,7 @@
 import javax.swing.*;
 import java.awt.*;
 
-/**
- * Draws a page replacement run like the textbook / lecture table:
- *   reference string across the top, one row per frame (F1, F2, ...), a Fault / Hit row (F in red, H in black),
- *   the page that was just loaded into a frame in red, then Total Page faults and Total Hits underneath.
- */
+
 public class ReplacementGrid extends JPanel {
     private static final Color RED = new Color(220, 0, 0);
     private PagingResult result;

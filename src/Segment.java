@@ -1,4 +1,3 @@
-/** One block of the Gantt chart. A null process means the CPU was idle. */
 public class Segment {
     private final PCB process;
     private final long start;

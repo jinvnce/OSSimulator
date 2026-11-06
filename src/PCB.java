@@ -1,13 +1,9 @@
-/**
- * Process Control Block: one job/process with encapsulated data and computed statistics.
- * Times are exact whole numbers in "fixed point": a time of 2.5 with 1 decimal place is stored as 25.
- * This keeps decimals exact (no 0.1 + 0.2 errors) and allows very large values.
- */
+
 public class PCB {
     private final int id;
     private final long arrival, burst;
     private long completion;
-    private long start = -1;   // time the job first gets the CPU (-1 = not started yet)
+    private long start = -1;
 
     public PCB(int id, long arrival, long burst) {
         if (arrival < 0 || burst < 1) throw new IllegalArgumentException("Invalid process values.");

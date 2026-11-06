@@ -5,12 +5,7 @@ import java.math.*;
 import java.util.*;
 import java.util.List;
 
-/**
- * Multiprogramming tab. Each job runs CPU burst 1, then does I/O, then CPU burst 2.
- * Uniprogramming runs one job at a time, so the CPU sits idle during I/O.
- * Multiprogramming lets another ready job use the CPU while a job waits for I/O (one CPU, one I/O device, both first-come first-served).
- * Times are whole numbers. Shows finish, turnaround, waiting, totals/averages and CPU utilization for both.
- */
+
 public class MultiprogrammingPanel extends ModulePanel {
     private static final int MAX_TICKS = 1_000_000;
 
@@ -94,7 +89,6 @@ public class MultiprogrammingPanel extends ModulePanel {
         } catch (IllegalArgumentException ex) { Util.error(this, ex.getMessage()); }
     }
 
-    /** One job: arrival, CPU burst 1, I/O burst, CPU burst 2, plus results. */
     private static class Job {
         final int id, at, c1, io, c2;
         int phase, left, finish;
@@ -130,7 +124,7 @@ public class MultiprogrammingPanel extends ModulePanel {
 
         int[] uniFinish = uniprogramming(jobs);
         StringBuilder tl = new StringBuilder();
-        int[] multi = multiprogramming(jobs, tl, tf);          // finish times
+        int[] multi = multiprogramming(jobs, tl, tf);
         int multiTotal = 0, uniTotal = 0, cpuBusy = 0;
         long mT = 0, mW = 0, uT = 0, uW = 0;
         out.setRowCount(0);
@@ -157,7 +151,6 @@ public class MultiprogrammingPanel extends ModulePanel {
 
     private static String fmt(double v) { return String.format("%.2f", v); }
 
-    /** One job at a time in order of arrival. The CPU is idle while the running job does I/O. */
     private int[] uniprogramming(List<Job> jobs) {
         List<Job> order = new ArrayList<>(jobs);
         order.sort(Comparator.comparingInt((Job j) -> j.at).thenComparingInt(j -> j.id));
@@ -167,7 +160,6 @@ public class MultiprogrammingPanel extends ModulePanel {
         return fin;
     }
 
-    /** Tick-by-tick simulation: one CPU and one I/O device, each first-come first-served, running in parallel. */
     private int[] multiprogramming(List<Job> jobs, StringBuilder tl, TimeFmt tf) {
         int n = jobs.size(), done = 0, t = 0;
         int[] fin = new int[n];
@@ -180,7 +172,7 @@ public class MultiprogrammingPanel extends ModulePanel {
         List<String> cpuSeg = new ArrayList<>(), ioSeg = new ArrayList<>();
         while (done < n) {
             List<Job> arriving = new ArrayList<>();
-            for (Job j : jobs) if (j.at == t) arriving.add(j);        // equal arrivals keep job order
+            for (Job j : jobs) if (j.at == t) arriving.add(j);
             cpuQ.addAll(arriving);
             if (cpu == null && !cpuQ.isEmpty()) cpu = cpuQ.poll();
             if (io == null && !ioQ.isEmpty()) io = ioQ.poll();

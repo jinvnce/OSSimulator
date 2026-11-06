@@ -1,4 +1,3 @@
-/** LRU: evicts the page that was used least recently. */
 public class LRUReplacement extends PageReplacement {
     private int[] lastUsed;
     @Override public String getName() { return "LRU"; }

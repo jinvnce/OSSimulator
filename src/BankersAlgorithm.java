@@ -1,14 +1,10 @@
 import java.util.*;
 
-/**
- * Banker's Algorithm (deadlock avoidance): the safety algorithm, checkSafety().
- * Need[i][j] = Max[i][j] - Allocation[i][j]. Available = Total - sum of Allocation (worked out by the panel).
- */
+
 public class BankersAlgorithm {
     private final int[][] allocation, max, need;
     private final int[] available;
 
-    /** Validates and copies the data; throws IllegalArgumentException for inconsistent input. */
     public BankersAlgorithm(int[][] allocation, int[][] max, int[] available) {
         int p = allocation.length, r = available.length;
         this.allocation = new int[p][]; this.max = new int[p][]; this.need = new int[p][r];
@@ -32,11 +28,10 @@ public class BankersAlgorithm {
     public int[] getAllocation(int i) { return allocation[i].clone(); }
     public int[] getAvailable() { return available.clone(); }
 
-    // ---------------- Safety algorithm ----------------
     public SafetyResult checkSafety() {
         int p = allocation.length, r = available.length;
-        int[] work = available.clone();                 // Work = Available
-        boolean[] finished = new boolean[p];            // Finish[i] = false
+        int[] work = available.clone();
+        boolean[] finished = new boolean[p];
         SafetyResult result = new SafetyResult();
         int step = 1;
         boolean progress = true;
@@ -70,8 +65,7 @@ public class BankersAlgorithm {
         return sb.append(")").toString();
     }
 
-    // ---------------- result classes ----------------
-    /** One check in the safety trace (one row of the lecture's example table). */
+
     public static class TraceRow {
         public final int step, process;
         public final int[] need, workBefore, workAfter;

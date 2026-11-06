@@ -3,7 +3,6 @@ import java.awt.*;
 import java.util.*;
 import java.util.List;
 
-/** Draws the head path: cylinders on the X axis, time (step) going down the Y axis. */
 public class DiskChart extends JPanel {
     private List<Integer> path = new ArrayList<>();
     private int maxCyl = 199;

@@ -1,4 +1,3 @@
-/** FIFO: evicts the page that has been in memory the longest (frames are used in a circle). */
 public class FIFOReplacement extends PageReplacement {
     private int next, size;
     @Override public String getName() { return "FIFO"; }

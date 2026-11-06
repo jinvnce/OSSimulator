@@ -4,13 +4,11 @@ import java.awt.Component;
 import java.math.BigDecimal;
 import java.util.Random;
 
-/** Shared helpers: input validation and small Swing utilities. Not instantiable. */
 public final class Util {
     public static final Random RNG = new Random();
 
     private Util() { }
 
-    /** Parses a whole number with clear messages for blank, non-numeric or too-small values. */
     public static int parseInt(String s, String name, int min) {
         s = s == null ? "" : s.trim();
         if (s.isEmpty()) throw new IllegalArgumentException(name + " is blank.");
@@ -24,7 +22,6 @@ public final class Util {
         return v;
     }
 
-    /** Parses a number that may be big and may have decimals. Commas and spaces are ignored, so 1,000,000.5 works. */
     public static BigDecimal parseDecimal(String s, String name) {
         s = s == null ? "" : s.trim().replace(",", "").replace("_", "").replace(" ", "");
         if (s.isEmpty()) throw new IllegalArgumentException(name + " is blank.");
@@ -35,7 +32,6 @@ public final class Util {
         }
     }
 
-    /** Resource names follow the slides: A, B, C, D ... (R26, R27 ... after Z). */
     public static String resourceName(int j) { return j < 26 ? String.valueOf((char) ('A' + j)) : "R" + j; }
 
     public static String str(Object o) { return o == null ? "" : o.toString(); }

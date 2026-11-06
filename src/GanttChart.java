@@ -3,18 +3,13 @@ import java.awt.*;
 import java.util.*;
 import java.util.List;
 
-/** Gantt chart panel that draws itself progressively (animation) using a Swing timer. */
 public class GanttChart extends JPanel {
     private List<Segment> segments = new ArrayList<>();
     private TimeFmt fmt;
-    private double shown = 0;            // how much of the chart is revealed, in internal time units
-    private double pxPerUnit = 1;        // pixels per internal time unit
+    private double shown = 0;
+    private double pxPerUnit = 1;
     private javax.swing.Timer timer;
 
-    /**
-     * @param scale decimal places of the internal numbers (used to keep the chart a sensible width:
-     *              about 30 px per input-unit of time, but never narrower than 600 px or wider than 30,000 px)
-     */
     public void play(List<Segment> segs, TimeFmt fmt, int scale) {
         if (timer != null) timer.stop();
         segments = segs;
@@ -48,7 +43,7 @@ public class GanttChart extends JPanel {
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         FontMetrics fm = g2.getFontMetrics();
         int y = 20, h = 50;
-        int lastTickRight = Integer.MIN_VALUE;   // stops time labels from overlapping each other
+        int lastTickRight = Integer.MIN_VALUE;
         for (Segment s : segments) {
             if (s.getStart() >= shown) break;
             double e = Math.min(s.getEnd(), shown);

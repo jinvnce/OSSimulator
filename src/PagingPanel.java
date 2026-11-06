@@ -4,10 +4,7 @@ import java.awt.*;
 import java.util.*;
 import java.util.List;
 
-/**
- * Paging tab: build a page table and translate logical addresses to physical addresses
- * (page number, offset, frame, physical address), with a memory diagram like the lecture figure.
- */
+
 public class PagingPanel extends ModulePanel {
     private final JTextField pageSize = new JTextField("4", 5), pages = new JTextField("4", 5),
             frames = new JTextField("8", 5), addrs = new JTextField("0 3 4 13", 18);
@@ -61,8 +58,7 @@ public class PagingPanel extends ModulePanel {
 
     @Override public String getTitle() { return "Paging"; }
 
-    // ---------- building the table ----------
-    /** Creates the page-table rows. Page i -> frame i when possible, or a random frame assignment. */
+
     private boolean generate(boolean random) {
         try {
             int n = Util.parseInt(pages.getText(), "Number of pages", 1);
@@ -82,7 +78,6 @@ public class PagingPanel extends ModulePanel {
     @Override
     protected void randomizeData() { if (generate(true)) refresh(null); }
 
-    /** The example from the lecture slide: 4-byte pages, 32-byte physical memory, page table 5, 6, 1, 2. */
     private void loadSample() {
         pageSize.setText("4"); pages.setText("4"); frames.setText("8"); addrs.setText("0 3 4 13");
         if (!generate(false)) return;
@@ -91,7 +86,6 @@ public class PagingPanel extends ModulePanel {
         refresh(null);
     }
 
-    /** Reads and validates the page table that is on screen. */
     private PageTable readTable() {
         Util.stopEditing(ptTable);
         int size = Util.parseInt(pageSize.getText(), "Page size", 1);
@@ -113,7 +107,6 @@ public class PagingPanel extends ModulePanel {
         } catch (IllegalArgumentException ex) { Util.error(this, ex.getMessage()); }
     }
 
-    // ---------- translating ----------
     @Override
     protected void runSimulation() {
         PageTable t;

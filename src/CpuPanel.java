@@ -9,15 +9,10 @@ import java.math.*;
 import java.util.*;
 import java.util.List;
 
-/**
- * CPU scheduling tab. Left side = the steps (1. algorithm, 2. jobs, 3. time units, Run).
- * Right side = the output (results table, Gantt chart, average waiting / turnaround time).
- * Times may be big and may have decimals. They can be entered in one time unit (seconds, minutes, hours)
- * and the results shown in another, with a chosen number of decimal places.
- */
+
 public class CpuPanel extends ModulePanel {
-    private static final int MAX_SCALE = 6;                  // at most 6 decimal places in the input
-    private static final int MAX_SLICES = 200_000;           // guard against a tiny quantum on a huge burst
+    private static final int MAX_SCALE = 6;
+    private static final int MAX_SLICES = 200_000;
 
     private static final String[] IN_NAMES = {"Job", "Arrival (AT)", "Burst (BT)"};
     private static final String[] IN_TIPS = {"Job number", "Arrival time (AT): when the job arrives and is ready to run",
@@ -55,7 +50,6 @@ public class CpuPanel extends ModulePanel {
         steps.setBorder(BorderFactory.createEmptyBorder(0, 2, 2, 0));
         add(steps, BorderLayout.NORTH);
 
-        // ---------- left: the steps ----------
         JPanel left = new LeftPanel();
         left.setLayout(new BoxLayout(left, BoxLayout.Y_AXIS));
         left.add(algorithmPanel());
@@ -77,7 +71,6 @@ public class CpuPanel extends ModulePanel {
         leftScroll.setPreferredSize(new Dimension(430, 100));
         add(leftScroll, BorderLayout.WEST);
 
-        // ---------- right: the output ----------
         JLabel formulas = new JLabel("<html>Waiting = Turnaround - Burst &nbsp;&nbsp;&nbsp; Turnaround = Finish - Arrival<br>Hover over a column title to see what it means.</html>");
         formulas.setForeground(Color.DARK_GRAY);
         formulas.setBorder(BorderFactory.createEmptyBorder(0, 6, 2, 0));
@@ -103,9 +96,8 @@ public class CpuPanel extends ModulePanel {
         center.add(bottom, BorderLayout.SOUTH);
         add(center, BorderLayout.CENTER);
 
-        // ---------- behaviour ----------
-        inUnit.setSelectedIndex(0);           // Seconds
-        outUnit.setSelectedIndex(0);          // Clock time
+        inUnit.setSelectedIndex(0);
+        outUnit.setSelectedIndex(0);
         places.setSelectedItem(2);
         algo.addActionListener(e -> updateControls());
         inUnit.addActionListener(e -> updateHeaders());
@@ -115,7 +107,6 @@ public class CpuPanel extends ModulePanel {
         run.addActionListener(e -> runSimulation());
     }
 
-    /** The left column: follows the width of the window instead of being clipped or getting a sideways scrollbar. */
     private static class LeftPanel extends JPanel implements Scrollable {
         public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
         public int getScrollableUnitIncrement(Rectangle r, int o, int d) { return 16; }
@@ -124,7 +115,6 @@ public class CpuPanel extends ModulePanel {
         public boolean getScrollableTracksViewportHeight() { return false; }
     }
 
-    // ---------- building the screen ----------
     private JPanel algorithmPanel() {
         JPanel p = titled("1. Choose algorithm");
         GridBagConstraints c = gbc();
@@ -234,7 +224,6 @@ public class CpuPanel extends ModulePanel {
         return l;
     }
 
-    /** A table whose cells are centred and whose column titles show a tooltip. */
     private static JTable tipTable(DefaultTableModel model, String[] tips) {
         JTable t = new JTable(model) {
             @Override protected JTableHeader createDefaultTableHeader() {
@@ -267,14 +256,12 @@ public class CpuPanel extends ModulePanel {
         description.setText("<html><body style='width:280px'>" + s.getDescription() + "</body></html>");
     }
 
-    /** Puts the unit in the column titles, e.g. "Arrival (AT) (min)". */
     private void updateHeaders() {
         String u = " (" + TimeFmt.ABBR[inUnit.getSelectedIndex()] + ")";
         in.setColumnIdentifiers(new String[]{IN_NAMES[0], IN_NAMES[1] + u, IN_NAMES[2] + u});
         inTable.getColumnModel().getColumn(0).setPreferredWidth(40);
     }
 
-    /** The textbook example, so the screen is never empty when the program starts. */
     private void loadExample() {
         String[][] d = {{"0", "8"}, {"1", "4"}, {"2", "9"}, {"3", "5"}};
         for (String[] r : d) in.addRow(new Object[]{"", r[0], r[1]});
@@ -291,7 +278,6 @@ public class CpuPanel extends ModulePanel {
         gantt.play(new ArrayList<>(), null, 0);
     }
 
-    // ---------- random jobs ----------
     private long maxRandom() {
         try {
             BigInteger v = Util.parseDecimal(maxValue.getText(), "Max value").toBigIntegerExact();
@@ -303,7 +289,6 @@ public class CpuPanel extends ModulePanel {
         }
     }
 
-    /** A random job. Arrival is 0..max/2, burst is 1..max (or 0.1..max when Decimals is ticked). */
     private Object[] randomRow() {
         long max = maxRandom();
         long arrMax = Math.max(1, max / 2);
@@ -333,7 +318,6 @@ public class CpuPanel extends ModulePanel {
         } catch (IllegalArgumentException ex) { Util.error(this, ex.getMessage()); }
     }
 
-    // ---------- run ----------
     @Override
     protected void runSimulation() {
         Util.stopEditing(inTable);
@@ -344,7 +328,6 @@ public class CpuPanel extends ModulePanel {
         int scale;
         TimeFmt fmt;
         try {
-            // 1. read the numbers exactly
             BigDecimal[] at = new BigDecimal[n], bt = new BigDecimal[n];
             BigDecimal q = null;
             scale = 0;
@@ -364,7 +347,6 @@ public class CpuPanel extends ModulePanel {
             if (scale > MAX_SCALE)
                 throw new IllegalArgumentException("Use at most " + MAX_SCALE + " decimal places in the times.");
 
-            // 2. turn them into whole numbers (2.5 with 1 decimal -> 25) and make sure they are not too big
             BigInteger sum = BigInteger.ZERO, maxAt = BigInteger.ZERO;
             long[] a = new long[n], b = new long[n];
             for (int i = 0; i < n; i++) {
@@ -385,7 +367,6 @@ public class CpuPanel extends ModulePanel {
             for (int i = 0; i < n; i++) procs.add(new PCB(i, a[i], b[i]));
             if (scheduler instanceof RoundRobinScheduler) ((RoundRobinScheduler) scheduler).setQuantum(ql);
 
-            // 3. how to show the results
             int decimals = (Integer) places.getSelectedItem();
             fmt = new TimeFmt(scale, inUnit.getSelectedIndex(), outUnit.getSelectedIndex(), decimals);
         } catch (IllegalArgumentException ex) { Util.error(this, ex.getMessage()); return; }

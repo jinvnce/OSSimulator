@@ -1,11 +1,6 @@
 import java.util.*;
 
-/**
- * Shared logic for FCFS and SJF. Subclasses only decide how two ready processes compare.
- * Uses a PriorityQueue as the ready queue, so the whole run is O(n log n).
- */
 public abstract class NonPreemptiveScheduler extends Scheduler {
-    /** Primary criterion; negative means a should run before b. Ties fall back to arrival, then id. */
     protected abstract int compare(PCB a, PCB b);
 
     @Override public boolean isPreemptive() { return false; }

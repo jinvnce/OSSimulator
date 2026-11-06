@@ -1,6 +1,5 @@
 import java.util.*;
 
-/** Round Robin: each process runs for at most one time quantum, then goes to the back of the queue. */
 public class RoundRobinScheduler extends Scheduler {
     private long quantum;
 

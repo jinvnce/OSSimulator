@@ -1,16 +1,11 @@
 import java.util.*;
 
-/**
- * A page table for simple paging (logical -> physical address translation).
- * Logical address  = page number * page size + offset.
- * Physical address = frame number * page size + offset.
- */
+
 public class PageTable {
     private final int pageSize, numFrames;
-    private final int[] frameOf;   // page -> frame, -1 = page not in memory
-    private final int[] owner;     // frame -> page, -1 = free frame
+    private final int[] frameOf;
+    private final int[] owner;
 
-    /** Validates the table: frames must exist and no frame may be used by two pages. */
     public PageTable(int pageSize, int numFrames, int[] frameOf) {
         if (pageSize < 1) throw new IllegalArgumentException("Page size must be at least 1.");
         if (numFrames < 1) throw new IllegalArgumentException("Number of frames must be at least 1.");
@@ -41,7 +36,6 @@ public class PageTable {
     public int getLogicalSize() { return pageSize * frameOf.length; }
     public int getPhysicalSize() { return pageSize * numFrames; }
 
-    /** Translates one logical address and records the calculation steps. */
     public Translation translate(int address) {
         if (address < 0 || address >= getLogicalSize())
             throw new IllegalArgumentException("Logical address " + address + " is outside the logical memory (0 to " + (getLogicalSize() - 1) + ").");
@@ -64,7 +58,6 @@ public class PageTable {
         return t;
     }
 
-    /** Result of translating one address. */
     public static class Translation {
         public int logical, page, offset, frame;
         public long physical;

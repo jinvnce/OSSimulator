@@ -1,16 +1,13 @@
 import java.util.*;
 
-/**
- * Abstract page replacement algorithm. simulate() is the template method (the loop is the same for
- * every policy); subclasses only decide which frame to evict and keep their own bookkeeping.
- */
+
 public abstract class PageReplacement {
-    protected int[] frames;   // page held by each frame, -1 = empty
-    protected int[] ref;      // the reference string
+    protected int[] frames;
+    protected int[] ref;
 
     public abstract String getName();
     protected abstract void init(int numFrames);
-    protected abstract int chooseVictim(int now);          // called only when every frame is full
+    protected abstract int chooseVictim(int now);
     protected void onHit(int slot, int now) { }
     protected void onLoad(int slot, int now) { }
 

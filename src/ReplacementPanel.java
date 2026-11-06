@@ -1,7 +1,6 @@
 import javax.swing.*;
 import java.awt.*;
 
-/** Page Replacement tab: FIFO / LRU / Optimal with a variable-length reference string. */
 public class ReplacementPanel extends ModulePanel {
     private final JTextField refs = new JTextField(32), frames = new JTextField("3", 4), len = new JTextField("20", 4);
     private final JComboBox<PageReplacement> algo = new JComboBox<>(new PageReplacement[]{

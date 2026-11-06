@@ -1,4 +1,3 @@
-/** First-Come First-Served: no extra criterion, so arrival order decides. */
 public class FCFSScheduler extends NonPreemptiveScheduler {
     @Override public String getName() { return "FCFS"; }
     @Override public String getDescription() {
