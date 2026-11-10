@@ -1,6 +1,5 @@
 import java.util.*;
 
-
 public abstract class DiskScheduler {
     public abstract String getName();
     public abstract String getDescription();
@@ -20,18 +19,31 @@ public abstract class DiskScheduler {
         return s;
     }
 
+    // Helper method: determines proximity to decide starting direction
+    protected boolean determineDirection(int head, List<Integer> lo, List<Integer> hi) {
+        if (lo.isEmpty()) return true;  // Go UP if no requests below
+        if (hi.isEmpty()) return false; // Go DOWN if no requests above
+        int closestLo = lo.get(lo.size() - 1);
+        int closestHi = hi.get(0);
+        return (closestHi - head) < (head - closestLo);
+    }
+
     @Override public String toString() { return getName(); }
 }
 
 class FIFODisk extends DiskScheduler {
     public String getName() { return "FIFO"; }
-    public String getDescription() { return "Serves the requests in the order they arrived. Simple and fair, but the head can jump back and forth."; }
-    protected List<Integer> order(int head, List<Integer> r, boolean up, int max) { return new ArrayList<>(r); }
+    public String getDescription() { return ""; }
+
+    protected List<Integer> order(int head, List<Integer> r, boolean up, int max) {
+        return new ArrayList<>(r);
+    }
 }
 
 class DDTFDisk extends DiskScheduler {
-    public String getName() { return "DDTF"; }
+    public String getName() { return "SSTF"; }
     public String getDescription() { return "Always serves the pending request closest to the head (shortest distance first). Fewer moves, but far requests can starve."; }
+
     protected List<Integer> order(int head, List<Integer> r, boolean up, int max) {
         List<Integer> left = new ArrayList<>(r), out = new ArrayList<>();
         int pos = head;
@@ -48,43 +60,74 @@ class DDTFDisk extends DiskScheduler {
 
 class LookDisk extends DiskScheduler {
     public String getName() { return "LOOK"; }
-    public String getDescription() { return "Moves in one direction serving requests until the last request in that direction, then reverses. It does not travel to the end of the disk."; }
+    public String getDescription() { return "Moves toward the closest request first, services to the lowest/highest request, then reverses without hitting endpoints."; }
+
     protected List<Integer> order(int head, List<Integer> r, boolean up, int max) {
         List<Integer> s = sorted(r), lo = new ArrayList<>(), hi = new ArrayList<>();
         for (int c : s) if (c < head) lo.add(c); else hi.add(c);
-        Collections.reverse(lo);                       // below the head, nearest first
+
+        boolean goUp = determineDirection(head, lo, hi);
+
+        List<Integer> loDesc = new ArrayList<>(lo); Collections.reverse(loDesc);
         List<Integer> out = new ArrayList<>();
-        if (up) { out.addAll(hi); out.addAll(lo); } else { out.addAll(lo); out.addAll(hi); }
+
+        if (goUp) {
+            out.addAll(hi);
+            out.addAll(loDesc);
+        } else {
+            out.addAll(loDesc);
+            out.addAll(hi);
+        }
         return out;
     }
 }
 
 class ElevatorDisk extends DiskScheduler {
-    public String getName() { return "Elevator (SCAN)"; }
-    public String getDescription() { return "Like an elevator: moves one way to the very end of the disk, then reverses and serves the rest on the way back."; }
+    public String getName() { return "Elevator"; }
+    public String getDescription() { return "Moves toward the closest request first, services to the lowest/highest request, then reverses."; }
+
     protected List<Integer> order(int head, List<Integer> r, boolean up, int max) {
         List<Integer> s = sorted(r), lo = new ArrayList<>(), hi = new ArrayList<>();
         for (int c : s) if (c < head) lo.add(c); else hi.add(c);
-        Collections.reverse(lo);
+
+        boolean goUp = determineDirection(head, lo, hi);
+
+        List<Integer> loDesc = new ArrayList<>(lo); Collections.reverse(loDesc);
         List<Integer> out = new ArrayList<>();
-        if (up) { out.addAll(hi); out.add(max); out.addAll(lo); }
-        else { out.addAll(lo); out.add(0); out.addAll(hi); }
+
+        if (goUp) {
+            out.addAll(hi);
+            out.addAll(loDesc);
+        } else {
+            out.addAll(loDesc);
+            out.addAll(hi);
+        }
         return out;
     }
 }
 
 class CScanDisk extends DiskScheduler {
     public String getName() { return "C-SCAN"; }
-    public String getDescription() { return "Circular SCAN: moves one way to the end of the disk, jumps back to the start, and keeps going the same way. The jump counts as head movement."; }
+    public String getDescription() { return "Circular SCAN: moves toward closest request first to max boundary, then wraps around in a circular direction."; }
+
     protected List<Integer> order(int head, List<Integer> r, boolean up, int max) {
         List<Integer> s = sorted(r), lo = new ArrayList<>(), hi = new ArrayList<>();
         for (int c : s) if (c < head) lo.add(c); else hi.add(c);
+
+        boolean goUp = determineDirection(head, lo, hi);
+
+        List<Integer> loDesc = new ArrayList<>(lo); Collections.reverse(loDesc);
+        List<Integer> hiDesc = new ArrayList<>(hi); Collections.reverse(hiDesc);
         List<Integer> out = new ArrayList<>();
-        if (up) { out.addAll(hi); out.add(max); out.add(0); out.addAll(lo); }
-        else {
-            List<Integer> loDesc = new ArrayList<>(lo); Collections.reverse(loDesc);
-            List<Integer> hiDesc = new ArrayList<>(hi); Collections.reverse(hiDesc);
-            out.addAll(loDesc); out.add(0); out.add(max); out.addAll(hiDesc);
+
+        if (goUp) {
+            out.addAll(hi);
+            out.add(max);     // Only C-SCAN uses max boundary
+            out.addAll(lo);
+        } else {
+            out.addAll(loDesc);
+            out.add(max);     // Only C-SCAN uses max boundary
+            out.addAll(hiDesc);
         }
         return out;
     }

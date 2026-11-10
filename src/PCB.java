@@ -15,7 +15,6 @@ public class PCB {
     public long getBurst() { return burst; }
     public long getCompletion() { return completion; }
     public long getStart() { return start; }
-    /** Records the start time only the first time the job runs (matters for preemptive algorithms). */
     public void markStart(long time) { if (start < 0) start = time; }
     public void setCompletion(long completion) { this.completion = completion; }
 

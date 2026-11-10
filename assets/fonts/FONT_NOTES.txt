@@ -1,0 +1,12 @@
+Included fonts:
+- Noto Sans Mono Bold: use for headings, numeric values, and compact table labels.
+- Cabin SemiBold: use for readable body text and buttons.
+
+These font files are provided from the system font collection. Check the respective upstream font license before redistributing outside your project:
+- Noto Sans: SIL Open Font License (OFL), https://scripts.sil.org/OFL
+- Cabin: SIL Open Font License (OFL), https://scripts.sil.org/OFL
+
+Suggested visual pairing:
+Headings: Noto Sans Mono Bold, 22–30 pt
+Body/buttons: Cabin SemiBold, 14–18 pt
+Tables: Cabin SemiBold, 13–16 pt
