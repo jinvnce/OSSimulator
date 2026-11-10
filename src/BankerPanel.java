@@ -10,10 +10,11 @@ import java.awt.*;
 
 
 public class BankerPanel extends ModulePanel {
-    private static final Color LINE = Color.DARK_GRAY, HEADER = new Color(0xEE, 0xEE, 0xEE);
+    private static final Color LINE = Theme.INK, HEADER = Theme.CREAM_SHADOW,
+            ROW_A = new Color(0xFBEBD2), ROW_B = Theme.CREAM, SAFE_GREEN = new Color(0x1E6B34);
 
-    private final JTextField np = new JTextField("5", 4), nr = new JTextField("4", 4);
-    private final JPanel totalsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 3));   // one box per resource type
+    private final JTextField np = new Theme.RoundField("5", 3), nr = new Theme.RoundField("4", 3);
+    private final JPanel totalsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 3));   // one box per resource type
     private JTextField[] totals = new JTextField[0];
     private final JTable tbl = new JTable() {
         @Override protected void configureEnclosingScrollPane() { }
@@ -29,35 +30,71 @@ public class BankerPanel extends ModulePanel {
     private int needCol(int j) { return 1 + 3 * m + j; }
 
     public BankerPanel() {
-        setLayout(new BorderLayout(8, 8));
-        setBorder(BorderFactory.createEmptyBorder(8, 8, 8, 8));
+        setLayout(new BorderLayout(10, 8));
+        setOpaque(false);
+        setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
 
-        JPanel top = new JPanel(new GridLayout(2, 1));
-        JPanel r1 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 3));
-        JButton gen = new JButton("Generate Tables"), rnd = new JButton("Randomize"),
-                sample = new JButton("Load Sample"), chk = new JButton("Check Safety");
-        r1.add(new JLabel("Processes (n):")); r1.add(np);
-        r1.add(new JLabel("Resource types (m):")); r1.add(nr);
-        r1.add(gen); r1.add(rnd); r1.add(sample); r1.add(chk);
-        top.add(r1); top.add(totalsPanel);
-        add(top, BorderLayout.NORTH);
+        // title banner
+        Theme.SkinPanel banner = new Theme.SkinPanel(null, null, false);
+        banner.body.setLayout(new BorderLayout(12, 0));
+        banner.body.add(new JLabel(Theme.icon("diamond", 30, Theme.INK)), BorderLayout.WEST);
+        JPanel titles = new JPanel();
+        titles.setOpaque(false);
+        titles.setLayout(new BoxLayout(titles, BoxLayout.Y_AXIS));
+        JLabel title = new JLabel("Banker's Algorithm");
+        title.setFont(Theme.heading(28f));
+        title.setForeground(Theme.INK);
+        titles.add(title);
+        titles.add(Theme.label("Check if the system is in a safe state.", Theme.MUTED, 14f));
+        banner.body.add(titles, BorderLayout.CENTER);
+        banner.setBorder(BorderFactory.createEmptyBorder(8, 14, 16, 18));
+        banner.setPreferredSize(new Dimension(400, 86));
+        banner.setMinimumSize(new Dimension(200, 86));
+
+        // toolbar
+        JButton gen = new Theme.SkinButton("Generate Tables", "navy"), rnd = new Theme.SkinButton("Randomize", "navy"),
+                sample = new Theme.SkinButton("Load Sample", "navy"), chk = new Theme.SkinButton("Check Safety", "red");
+        gen.setPreferredSize(new Dimension(160, 40));
+        rnd.setPreferredSize(new Dimension(130, 40));
+        sample.setPreferredSize(new Dimension(140, 40));
+        chk.setIcon(Theme.playIcon(12, Theme.CREAM));
+        chk.setFont(Theme.body(17f).deriveFont(Font.BOLD));
+        chk.setPreferredSize(new Dimension(200, 44));
+        JPanel r1 = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 4));
+        r1.setOpaque(false);
+        r1.add(Theme.label("Processes (n):", Theme.CREAM, 15f)); r1.add(np);
+        r1.add(Theme.label("Resource types (m):", Theme.CREAM, 15f)); r1.add(nr);
+        r1.add(gen); r1.add(rnd); r1.add(sample);
+        JPanel bar = new JPanel(new BorderLayout());
+        bar.setOpaque(false);
+        bar.add(r1, BorderLayout.CENTER);
+        bar.add(chk, BorderLayout.EAST);
+        totalsPanel.setOpaque(false);
+
+        JPanel north = new JPanel();
+        north.setOpaque(false);
+        north.setLayout(new BoxLayout(north, BoxLayout.Y_AXIS));
+        for (JComponent c : new JComponent[]{banner, bar, totalsPanel}) {
+            c.setAlignmentX(Component.LEFT_ALIGNMENT);
+            north.add(c);
+        }
+        add(north, BorderLayout.NORTH);
 
         setupTable();
         JPanel header = new JPanel(new BorderLayout());
         header.add(new GroupBar(), BorderLayout.NORTH);
         header.add(tbl.getTableHeader(), BorderLayout.CENTER);
-        JScrollPane tableScroll = new JScrollPane(tbl);
+        JScrollPane tableScroll = Theme.scroll(tbl, ROW_A);
         tableScroll.setColumnHeaderView(header);
-        JPanel tablePanel = new JPanel(new BorderLayout());
-        tablePanel.setBorder(BorderFactory.createTitledBorder("Banker's table"));
-        tablePanel.add(tableScroll, BorderLayout.CENTER);
+        Theme.SkinPanel tablePanel = new Theme.SkinPanel("Banker's Table", "diamond", false);
+        tablePanel.body.add(tableScroll, BorderLayout.CENTER);
         add(tablePanel, BorderLayout.CENTER);
 
-        verdict.setFont(verdict.getFont().deriveFont(Font.BOLD, 20f));
-        verdict.setBorder(BorderFactory.createEmptyBorder(8, 8, 10, 8));
-        JPanel resultPanel = new JPanel(new BorderLayout());
-        resultPanel.setBorder(BorderFactory.createTitledBorder("Result"));
-        resultPanel.add(verdict, BorderLayout.CENTER);
+        verdict.setFont(Theme.heading(20f));
+        verdict.setForeground(Theme.INK);
+        verdict.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
+        Theme.SkinPanel resultPanel = new Theme.SkinPanel("Result", "cpu", false);
+        resultPanel.body.add(verdict, BorderLayout.CENTER);
         add(resultPanel, BorderLayout.SOUTH);
 
         gen.addActionListener(e -> generateSafely());
@@ -67,22 +104,34 @@ public class BankerPanel extends ModulePanel {
         generate();
     }
 
+    @Override protected void paintComponent(Graphics g) {
+        Theme.paintBackground(g, this);
+        super.paintComponent(g);
+    }
+
     @Override public String getTitle() { return "Banker's Algorithm"; }
 
     private void setupTable() {
-        tbl.setRowHeight(24);
+        tbl.setRowHeight(30);
+        tbl.setFont(Theme.body(15f));
+        tbl.setForeground(Theme.INK);
+        tbl.setBackground(ROW_A);
         tbl.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
         tbl.setShowGrid(true);
-        tbl.setGridColor(Color.LIGHT_GRAY);
+        tbl.setGridColor(new Color(0xD8BE96));
         tbl.setCellSelectionEnabled(true);
+        tbl.setSelectionBackground(Theme.GOLD);
+        tbl.setSelectionForeground(Theme.INK);
+        tbl.setFillsViewportHeight(true);
         tbl.getTableHeader().setReorderingAllowed(false);
+        tbl.getTableHeader().setPreferredSize(new Dimension(0, 32));
         tbl.getTableHeader().setDefaultRenderer(new DefaultTableCellRenderer() {
             @Override public Component getTableCellRendererComponent(JTable t, Object v, boolean sel, boolean foc, int r, int c) {
                 super.getTableCellRendererComponent(t, v, false, false, r, c);
                 setHorizontalAlignment(c == 0 ? SwingConstants.LEFT : SwingConstants.CENTER);
                 setBackground(HEADER);
-                setForeground(Color.BLACK);
-                setFont(getFont().deriveFont(Font.BOLD));
+                setForeground(Theme.INK);
+                setFont(Theme.heading(13f));
                 setBorder(groupBorder(c, 0));
                 return this;
             }
@@ -91,7 +140,8 @@ public class BankerPanel extends ModulePanel {
             @Override public Component getTableCellRendererComponent(JTable t, Object v, boolean sel, boolean foc, int r, int c) {
                 super.getTableCellRendererComponent(t, v, sel, false, r, c);
                 setHorizontalAlignment(c == 0 ? SwingConstants.LEFT : SwingConstants.CENTER);
-                setFont(getFont().deriveFont(c == 0 ? Font.BOLD : Font.PLAIN));
+                setFont(c == 0 ? Theme.heading(13f) : Theme.body(15f));
+                if (!sel) { setBackground(r % 2 == 0 ? ROW_A : ROW_B); setForeground(Theme.INK); }
                 setBorder(groupBorder(c, r == p && t.getRowCount() > p ? 2 : 0));   // a line where the table "goes back around"
                 return this;
             }
@@ -116,7 +166,7 @@ public class BankerPanel extends ModulePanel {
     }
 
     private class GroupBar extends JComponent {
-        GroupBar() { setPreferredSize(new Dimension(100, 24)); }
+        GroupBar() { setPreferredSize(new Dimension(100, 28)); }
         @Override protected void paintComponent(Graphics g) {
             super.paintComponent(g);
             TableColumnModel cm = tbl.getColumnModel();
@@ -124,7 +174,8 @@ public class BankerPanel extends ModulePanel {
             int[] starts = {0, 1, 1 + m, 1 + 2 * m, 1 + 3 * m, 1 + 4 * m};
             int x = 0;
             Graphics2D g2 = (Graphics2D) g;
-            g2.setFont(getFont().deriveFont(Font.BOLD));
+            g2.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);
+            g2.setFont(Theme.heading(14f));
             FontMetrics fm = g2.getFontMetrics();
             for (int k = 0; k < 5; k++) {
                 int w = 0;
@@ -161,13 +212,18 @@ public class BankerPanel extends ModulePanel {
         }
         model.addTableModelListener(e -> userEdited());
         tbl.setModel(model);
-        tbl.getColumnModel().getColumn(0).setMinWidth(110);
-        tbl.getColumnModel().getColumn(0).setPreferredWidth(110);
-        for (int c = 1; c < model.getColumnCount(); c++) tbl.getColumnModel().getColumn(c).setPreferredWidth(40);
+        tbl.getColumnModel().getColumn(0).setMinWidth(120);
+        tbl.getColumnModel().getColumn(0).setPreferredWidth(120);
+        for (int c = 1; c < model.getColumnCount(); c++) tbl.getColumnModel().getColumn(c).setPreferredWidth(44);
         buildTotals();
-        verdict.setText("Click Check Safety to see the result.");
+        setVerdict("Click Check Safety to see the result.", Theme.INK);
         Container hp = tbl.getTableHeader().getParent();
         if (hp != null) { hp.revalidate(); hp.repaint(); }
+    }
+
+    private void setVerdict(String text, Color color) {
+        verdict.setText(text);
+        verdict.setForeground(color);
     }
 
     private boolean generateSafely() {
@@ -257,18 +313,18 @@ public class BankerPanel extends ModulePanel {
     private void buildTotals() {
         totalsPanel.removeAll();
         totals = new JTextField[m];
-        JLabel title = new JLabel("Total resources:");
+        JLabel title = Theme.label("Total resources:", Theme.CREAM, 15f);
         title.setToolTipText("How many of each resource exist in the whole system. Available = Total - everyone's Allocation.");
         totalsPanel.add(title);
         for (int j = 0; j < m; j++) {
-            totals[j] = new JTextField("0", 4);
+            totals[j] = new Theme.RoundField("0", 3);
             totals[j].setHorizontalAlignment(SwingConstants.CENTER);
             totals[j].getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
                 public void insertUpdate(javax.swing.event.DocumentEvent e) { userEdited(); }
                 public void removeUpdate(javax.swing.event.DocumentEvent e) { userEdited(); }
                 public void changedUpdate(javax.swing.event.DocumentEvent e) { userEdited(); }
             });
-            totalsPanel.add(new JLabel(Util.resourceName(j) + ":"));
+            totalsPanel.add(Theme.label(Util.resourceName(j) + ":", Theme.CREAM, 15f));
             totalsPanel.add(totals[j]);
         }
         totalsPanel.revalidate();
@@ -342,7 +398,7 @@ public class BankerPanel extends ModulePanel {
         showNeed(b);
         fillWorking(s);
         updating = false;
-        verdict.setText(verdict(s));
+        setVerdict(verdict(s), s.safe ? SAFE_GREEN : Theme.CRIMSON);
         tbl.repaint();
     }
 }
