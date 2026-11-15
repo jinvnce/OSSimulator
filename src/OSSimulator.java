@@ -64,7 +64,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class OSSimulator extends JFrame {
-    private static final String[] ICONS = {"cpu", "diamond", "club", "heart", "memory", "gear"};
+    private static final String[] ICONS = {"cpu", "diamond", "club", "heart", "memory", "gear", "cards", "hourglass"};
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new OSSimulator().setVisible(true));
@@ -74,7 +74,7 @@ public class OSSimulator extends JFrame {
         super("OS Simulator");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         ModulePanel[] modules = {new CpuPanel(), new BankerPanel(), new PagingPanel(), new ReplacementPanel(),
-                new MultiprogrammingPanel(), new DiskPanel()};
+                new MultiprogrammingPanel(), new DiskPanel(), new SegmentationPanel(), new FragmentationPanel()};
 
         JPanel root = new JPanel(new BorderLayout()) {
             @Override protected void paintComponent(Graphics g) { Theme.paintBackground(g, this); }
