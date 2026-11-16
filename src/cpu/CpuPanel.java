@@ -1,8 +1,13 @@
 package cpu;
 
+import ui.ModulePanel;
+import ui.Theme;
+import util.TimeFmt;
+import util.Util;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
+import ui.ModuleHeader;
 import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.math.*;
@@ -188,12 +193,10 @@ public class CpuPanel extends ModulePanel {
         p.body.add(sp, BorderLayout.CENTER);
         p.body.setToolTipText("Double-click a cell to edit");
 
-        JButton add = new Theme.SkinButton("Add row", "navy"), del = new Theme.SkinButton("Remove", "navy"),
-                clr = new Theme.SkinButton("Clear all", "navy");
-        JPanel buttons = new JPanel(new GridLayout(1, 3, 6, 0));
-        buttons.setOpaque(false);
-        for (JButton b : new JButton[]{add, del, clr}) { b.setMargin(new Insets(4, 4, 8, 4)); b.setPreferredSize(new Dimension(100, 38)); buttons.add(b); }
-        p.body.add(buttons, BorderLayout.SOUTH);
+        JButton add = ModuleHeader.navyButton("Add row", 100), del = ModuleHeader.dangerButton("Remove", 100),
+                clr = ModuleHeader.dangerButton("Clear all", 100);
+        Runnable doClear = () -> { Util.stopEditing(inTable); in.setRowCount(0); clearResults(); };
+        p.body.add(ModuleHeader.tableButtons(add, del, clr, inTable, in, doClear, this), BorderLayout.SOUTH);
 
         add.addActionListener(e -> {
             try { Util.stopEditing(inTable); in.addRow(randomRow()); renumber(); }
@@ -204,11 +207,6 @@ public class CpuPanel extends ModulePanel {
             int[] rows = inTable.getSelectedRows();
             for (int i = rows.length - 1; i >= 0; i--) in.removeRow(rows[i]);
             renumber();
-        });
-        clr.addActionListener(e -> {
-            Util.stopEditing(inTable);
-            in.setRowCount(0);
-            clearResults();
         });
         return p;
     }
@@ -224,7 +222,8 @@ public class CpuPanel extends ModulePanel {
         c.gridy = 4; p.body.add(decimalValues, c);
         JButton rnd = new Theme.SkinButton("Randomize", "navy");
         rnd.setPreferredSize(new Dimension(150, 40));
-        c.gridy = 5; c.insets = new Insets(6, 4, 3, 4); p.body.add(rnd, c);
+        c.gridy = 5; c.insets = new Insets(6, 4, 3, 4); c.fill = GridBagConstraints.NONE; c.anchor = GridBagConstraints.CENTER;
+        p.body.add(rnd, c);
         maxValue.setToolTipText("Largest number the randomizer uses for a time, e.g. 10 or 1000000");
         decimalValues.setToolTipText("Make the random times decimal numbers such as 3.7");
         rnd.addActionListener(e -> randomizeData());

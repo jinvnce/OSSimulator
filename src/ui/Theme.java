@@ -205,6 +205,7 @@ public final class Theme {
     public static class SkinButton extends JButton {
         private String kind;
 
+        /** kind: "red" (primary), "navy" (secondary), "cream" (neutral) or "danger" (cream with red text, for destructive actions). */
         public SkinButton(String text, String kind) {
             super(text);
             this.kind = kind;
@@ -213,31 +214,52 @@ public final class Theme {
             setFocusPainted(false);
             setOpaque(false);
             setRolloverEnabled(true);
-            setForeground(kind.equals("cream") ? INK : CREAM);
+            setForeground(textColor(kind));
             setFont(body(15f).deriveFont(Font.BOLD));
             setMargin(new Insets(4, 14, 8, 14));
             setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
             setIconTextGap(8);
         }
 
-        /** Switch the skin: "red", "navy" or "cream". */
+        private static Color textColor(String k) {
+            return k.equals("danger") ? CRIMSON : k.equals("cream") ? INK : CREAM;
+        }
+
+        private static String skinOf(String k) { return k.equals("danger") ? "cream" : k; }
+
+        /** Switch the skin: "red", "navy", "cream" or "danger". */
         public void setKind(String k) {
             kind = k;
-            setForeground(k.equals("cream") ? INK : CREAM);
+            setForeground(textColor(k));
             repaint();
+        }
+
+        @Override public void setEnabled(boolean b) {
+            super.setEnabled(b);
+            setCursor(Cursor.getPredefinedCursor(b ? Cursor.HAND_CURSOR : Cursor.DEFAULT_CURSOR));
         }
 
         @Override protected void paintComponent(Graphics g0) {
             Graphics2D g = (Graphics2D) g0.create();
-            String state = getModel().isPressed() ? "pressed" : getModel().isRollover() ? "hover" : "normal";
-            BufferedImage im = image("buttons/" + kind + "_button_" + state + ".png");
+            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            if (!isEnabled()) g.setComposite(AlphaComposite.SrcOver.derive(0.45f));   // clearly "greyed out"
+            String state = !isEnabled() ? "normal" : getModel().isPressed() ? "pressed" : getModel().isRollover() ? "hover" : "normal";
+            BufferedImage im = image("buttons/" + skinOf(kind) + "_button_" + state + ".png");
             if (im != null) cap3(g, im, getWidth(), getHeight(), 34);
             else {
-                g.setColor(kind.equals("red") ? CRIMSON : kind.equals("cream") ? CREAM : MUTED);
+                g.setColor(kind.equals("red") ? CRIMSON : skinOf(kind).equals("cream") ? CREAM : MUTED);
                 g.fillRoundRect(0, 0, getWidth(), getHeight(), 14, 14);
             }
+            if (isEnabled() && isFocusOwner()) {                       // keyboard focus ring
+                g.setColor(GOLD);
+                g.setStroke(new BasicStroke(2f));
+                g.drawRoundRect(2, 2, getWidth() - 5, getHeight() - 5, 14, 14);
+            }
             g.dispose();
-            super.paintComponent(g0);
+            Graphics2D t = (Graphics2D) g0.create();
+            if (!isEnabled()) t.setComposite(AlphaComposite.SrcOver.derive(0.55f));
+            super.paintComponent(t);
+            t.dispose();
         }
     }
 
@@ -326,7 +348,7 @@ public final class Theme {
         };
     }
 
-    /** Red rounded drop-down with a cream arrow. */
+    /** Navy rounded drop-down with a cream arrow (red is kept for the one primary button). */
     @SuppressWarnings({"unchecked", "rawtypes"})
     public static void styleCombo(JComboBox<?> combo) {
         combo.setUI(new BasicComboBoxUI() {
@@ -351,9 +373,9 @@ public final class Theme {
             @Override public void paint(Graphics g0, JComponent c) {
                 Graphics2D g = (Graphics2D) g0.create();
                 g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g.setColor(CRIMSON);
+                g.setColor(MUTED);
                 g.fillRoundRect(0, 0, c.getWidth() - 1, c.getHeight() - 1, 14, 14);
-                g.setColor(INK);
+                g.setColor(c.isEnabled() ? GOLD : CREAM_SHADOW);
                 g.drawRoundRect(0, 0, c.getWidth() - 1, c.getHeight() - 1, 14, 14);
                 g.dispose();
                 super.paint(g0, c);
@@ -369,7 +391,7 @@ public final class Theme {
                 setFont(body(15f).deriveFont(Font.BOLD));
                 setBorder(BorderFactory.createEmptyBorder(3, 8, 3, 8));
                 if (i < 0) { setOpaque(false); setForeground(CREAM); }
-                else { setOpaque(true); setBackground(sel ? GOLD : CRIMSON); setForeground(sel ? INK : CREAM); }
+                else { setOpaque(true); setBackground(sel ? GOLD : MUTED); setForeground(sel ? INK : CREAM); }
                 return this;
             }
         });

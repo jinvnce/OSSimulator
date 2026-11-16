@@ -53,7 +53,7 @@ public class SegmentTable {
         String logical = segment + ":" + offset;
         if (segment < 0 || segment >= entries.size())
             return new Result(logical, segment, offset, false, -1, null,
-                    "segmentation.Segment " + segment + " does not exist (the table has segments 0 to " + (entries.size() - 1)
+                    "Segment " + segment + " does not exist (the table has segments 0 to " + (entries.size() - 1)
                             + "), so this is an addressing error.");
         Entry e = entries.get(segment);
         if (offset < 0)

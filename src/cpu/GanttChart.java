@@ -1,5 +1,7 @@
 package cpu;
 
+import ui.Theme;
+import util.TimeFmt;
 import javax.swing.*;
 import java.awt.*;
 import java.util.*;

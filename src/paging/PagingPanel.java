@@ -1,21 +1,23 @@
 package paging;
 
+import ui.ModuleHeader;
 import ui.ModulePanel;
+import ui.Theme;
+import util.Util;
 
 import javax.swing.*;
-import javax.swing.table.DefaultTableCellRenderer;
+import javax.swing.event.TableModelEvent;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.util.*;
 import java.util.List;
 
-
 public class PagingPanel extends ModulePanel {
 
-    private final JTextField pageSize = new JTextField("4", 4);
-    private final JTextField pages = new JTextField("4", 4);
-    private final JTextField frames = new JTextField("8", 4);
-    private final JTextField addrs = new JTextField("0 3 4 13", 20);
+    private final JTextField pageSize = new Theme.RoundField("4", 4);
+    private final JTextField pages = new Theme.RoundField("4", 4);
+    private final JTextField frames = new Theme.RoundField("8", 4);
+    private final JTextField addrs = new Theme.RoundField("0 3 4 13", 14);
 
     private final DefaultTableModel ptModel = new DefaultTableModel(new String[]{"Page", "Frame"}, 0) {
         public boolean isCellEditable(int r, int c) { return c == 1; }
@@ -28,104 +30,114 @@ public class PagingPanel extends ModulePanel {
 
     private final JTextArea log = new JTextArea();
     private final MemoryDiagram diagram = new MemoryDiagram();
-    private final JLabel info = new JLabel(" ");
+    private final Theme.SkinPanel memCard = new Theme.SkinPanel("Memory", null, false);
 
     public PagingPanel() {
-        setLayout(new BorderLayout(8, 8));
+        setLayout(new BorderLayout(0, 8));
+        setOpaque(false);
         setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
 
-        // TOP BAR (row 1: setup, row 2: translate)
-        JButton gen = new JButton("Generate");
-        JButton rnd = new JButton("Randomize");
-        JButton sample = new JButton("Sample");
-        JButton apply = new JButton("Apply");
-        JButton tr = new JButton("▶ Translate");
-        JButton all = new JButton("Translate all");
+        JButton gen = ModuleHeader.navyButton("Generate", 100);
+        JButton rnd = ModuleHeader.navyButton("Randomize", 100);
+        JButton add = ModuleHeader.navyButton("+ Add page", 100);
+        JButton del = ModuleHeader.navyButton("- Remove page", 100);
+        JButton all = ModuleHeader.navyButton("Translate all", 150);
+        JButton run = ModuleHeader.runButton("Translate");
 
-        pageSize.setToolTipText("Bytes per page");
-        pages.setToolTipText("Pages in logical memory");
-        frames.setToolTipText("Frames in physical memory");
         addrs.setToolTipText("Logical addresses, separated by spaces or commas");
-        gen.setToolTipText("Build an empty page table");
-        rnd.setToolTipText("Build a table with shuffled frames");
-        sample.setToolTipText("Load a ready-made example");
-        apply.setToolTipText("Redraw the diagram using the edited table");
-        all.setToolTipText("Translate every logical address");
-        tr.setFont(tr.getFont().deriveFont(Font.BOLD));
-
-        JPanel row1 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 3));
-        row1.add(new JLabel("Page size"));
-        row1.add(pageSize);
-        row1.add(new JLabel("Pages"));
-        row1.add(pages);
-        row1.add(new JLabel("Frames"));
-        row1.add(frames);
-        row1.add(gen);
-        row1.add(rnd);
-        row1.add(sample);
-        row1.add(apply);
-
-        JPanel row2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 3));
-        row2.add(new JLabel("Address"));
-        row2.add(addrs);
-        row2.add(tr);
-        row2.add(all);
-
-        JPanel top = new JPanel(new GridLayout(2, 1));
-        top.add(row1);
-        top.add(row2);
-        add(top, BorderLayout.NORTH);
-
-        // TABLE TWEAKS
-        DefaultTableCellRenderer center = new DefaultTableCellRenderer();
-        center.setHorizontalAlignment(SwingConstants.CENTER);
-
-        for (JTable t : new JTable[]{ptTable, resultsTable}) {
-            t.setRowHeight(22);
-            t.setFillsViewportHeight(true);
-            for (int c = 0; c < t.getColumnCount(); c++) {
-                t.getColumnModel().getColumn(c).setCellRenderer(center);
-            }
-        }
-
         ptTable.setToolTipText("Edit the Frame column. Blank = not in memory.");
+
+        // HEADER: banner + tool bar
+        JPanel tools = ModuleHeader.toolRow();
+        tools.add(Theme.label("Page size", Theme.CREAM, 16f));
+        tools.add(pageSize);
+        tools.add(Theme.label("Pages", Theme.CREAM, 16f));
+        tools.add(pages);
+        tools.add(Theme.label("Frames", Theme.CREAM, 16f));
+        tools.add(frames);
+        add(ModuleHeader.north("Paging", "Address translation", "club", tools, run), BorderLayout.NORTH);
+
+        // TABLES
+        Theme.styleTable(ptTable, false);
+        Theme.styleTable(resultsTable, true);
 
         log.setEditable(false);
         log.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 13));
+        log.setBackground(Theme.DEEP);
+        log.setForeground(Theme.CREAM);
+        log.setCaretColor(Theme.CREAM);
+        log.setMargin(new Insets(6, 8, 6, 8));
 
-        // LEFT: input + output tables
-        JSplitPane left = new JSplitPane(JSplitPane.VERTICAL_SPLIT,
-                Util.scroll(ptTable, "Page table"),
-                Util.scroll(resultsTable, "Results"));
-        left.setResizeWeight(0.45);
+        // PAGE TABLE card (sits in a split pane, so it keeps a fixed share of the height
+        // and the table scrolls when there are more rows than fit)
+        Theme.SkinPanel ptCard = new Theme.SkinPanel("Page Table", null, false);
+        ptCard.body.add(Theme.scroll(ptTable, Theme.CREAM), BorderLayout.CENTER);
+        JPanel btns = new JPanel(new GridLayout(2, 2, 6, 6));
+        btns.setOpaque(false);
+        btns.setBorder(BorderFactory.createEmptyBorder(8, 0, 0, 0));
+        btns.add(add); btns.add(del);
+        btns.add(gen); btns.add(rnd);
+        ptCard.body.add(btns, BorderLayout.SOUTH);
 
-        // RIGHT: diagram + steps
-        JSplitPane right = new JSplitPane(JSplitPane.VERTICAL_SPLIT,
-                Util.scroll(diagram, "Memory"),
-                Util.scroll(log, "Steps"));
-        right.setResizeWeight(0.65);
+        // RESULTS card (moved to the left, under the page table)
+        Theme.SkinPanel resCard = new Theme.SkinPanel("Results", null, false);
+        resCard.body.add(Theme.scroll(resultsTable, Theme.DEEP), BorderLayout.CENTER);
+
+        // ADDRESSES card
+        Theme.SkinPanel addrCard = new Theme.SkinPanel("Addresses", null, false);
+        JPanel addrRow = new JPanel(new BorderLayout(8, 0));
+        addrRow.setOpaque(false);
+        addrRow.add(addrs, BorderLayout.CENTER);
+        addrRow.add(all, BorderLayout.EAST);
+        addrCard.body.add(addrRow, BorderLayout.CENTER);
+
+        // LEFT column: [page table | results] split, addresses pinned at the bottom
+        JSplitPane leftSplit = Theme.split(ptCard, resCard);
+        leftSplit.setResizeWeight(0.45);
+
+        JPanel left = new JPanel(new BorderLayout(0, 8));
+        left.setOpaque(false);
+        left.add(leftSplit, BorderLayout.CENTER);
+        left.add(addrCard, BorderLayout.SOUTH);
+
+        // RIGHT column: big memory diagram, steps underneath
+        memCard.body.add(Theme.scroll(diagram, Theme.DEEP), BorderLayout.CENTER);
+        memCard.body.add(MemoryDiagram.legend(), BorderLayout.SOUTH);
+
+        Theme.SkinPanel stepsCard = new Theme.SkinPanel("Steps", null, false);
+        stepsCard.body.add(Theme.scroll(log, Theme.DEEP), BorderLayout.CENTER);
+
+        JSplitPane right = Theme.split(memCard, stepsCard);
+        right.setResizeWeight(0.75);
 
         JSplitPane main = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, left, right);
         main.setResizeWeight(0.4);
+        main.setOpaque(false);
+        main.setBorder(null);
+        main.setDividerSize(10);
+        main.setContinuousLayout(true);
         add(main, BorderLayout.CENTER);
 
-        // BOTTOM: memory sizes
-        info.setForeground(Color.DARK_GRAY);
-        info.setBorder(BorderFactory.createEmptyBorder(0, 4, 0, 0));
-        add(info, BorderLayout.SOUTH);
-
-        gen.addActionListener(e -> { if (generate(false)) refresh(null); });
+        gen.addActionListener(e -> { if (generate(false)) refresh(null, false); });
         rnd.addActionListener(e -> randomizeData());
-        sample.addActionListener(e -> loadSample());
-        apply.addActionListener(e -> refresh(null));
-        tr.addActionListener(e -> runSimulation());
+        add.addActionListener(e -> addPage());
+        del.addActionListener(e -> removePage());
+
+        // pressing Enter in a setting field applies it (rebuilds the page table)
+        java.awt.event.ActionListener apply = e -> { if (generate(false)) refresh(null, false); };
+        pageSize.addActionListener(apply);
+        pages.addActionListener(apply);
+        frames.addActionListener(apply);
+        run.addActionListener(e -> runSimulation());
         all.addActionListener(e -> translateAll());
 
-        if (generate(false)) refresh(null);
+        // live redraw while editing the Frame column (silent on half-typed input)
+        ptModel.addTableModelListener(e -> { if (e.getType() == TableModelEvent.UPDATE) refresh(null, true); });
+
+        if (generate(false)) refresh(null, false);
     }
 
     @Override public String getTitle() { return "Paging"; }
-
 
     private boolean generate(boolean random) {
         try {
@@ -143,15 +155,74 @@ public class PagingPanel extends ModulePanel {
         } catch (IllegalArgumentException ex) { Util.error(this, ex.getMessage()); return false; }
     }
 
-    @Override
-    protected void randomizeData() { if (generate(true)) refresh(null); }
+    /**
+     * Appends one page with a random free frame, without touching the frames already entered.
+     * If every frame is already taken, the new page is left blank (not in memory).
+     */
+    private void addPage() {
+        Util.stopEditing(ptTable);
+        int n = ptModel.getRowCount();
 
-    private void loadSample() {
-        pageSize.setText("4"); pages.setText("4"); frames.setText("8"); addrs.setText("0 3 4 13");
-        if (!generate(false)) return;
-        int[] f = {5, 6, 1, 2};
-        for (int i = 0; i < 4; i++) ptModel.setValueAt("" + f[i], i, 1);
-        refresh(null);
+        String frame = "";
+        try {
+            int f = Util.parseInt(frames.getText(), "Frames", 1);
+
+            // collect frames that are not already assigned to another page
+            Set<Integer> used = new HashSet<>();
+            for (int i = 0; i < n; i++) {
+                String s = Util.str(ptModel.getValueAt(i, 1)).trim();
+                if (!s.isEmpty() && !s.equals("-")) {
+                    try { used.add(Integer.parseInt(s)); } catch (NumberFormatException ignored) { }
+                }
+            }
+            List<Integer> free = new ArrayList<>();
+            for (int k = 0; k < f; k++) if (!used.contains(k)) free.add(k);
+
+            if (!free.isEmpty()) frame = "" + free.get(Util.RNG.nextInt(free.size()));
+        } catch (IllegalArgumentException ex) {
+            // bad Frames field: just add the page with no frame
+        }
+
+        ptModel.addRow(new Object[]{n, frame});
+        pages.setText("" + (n + 1));
+        int last = ptModel.getRowCount() - 1;
+        ptTable.scrollRectToVisible(ptTable.getCellRect(last, 0, true));
+        ptTable.setRowSelectionInterval(last, last);
+        refresh(null, true);
+
+        // more pages than frames: remind the user to add a frame too
+        try {
+            int f = Util.parseInt(frames.getText(), "Frames", 1);
+            if (n + 1 > f) {
+                JOptionPane.showMessageDialog(this,
+                        "You now have " + (n + 1) + " pages but only " + f + " frame" + (f == 1 ? "" : "s") + ".\n"
+                                + "Increase the Frames field too (and press Enter) so every page can be loaded.",
+                        "Not enough frames", JOptionPane.INFORMATION_MESSAGE);
+            }
+        } catch (IllegalArgumentException ignored) { }
+    }
+
+    /** Removes the last page. */
+    private void removePage() {
+        Util.stopEditing(ptTable);
+        int n = ptModel.getRowCount();
+        if (n <= 1) return;
+        ptModel.removeRow(n - 1);
+        pages.setText("" + (n - 1));
+        refresh(null, true);
+    }
+
+    @Override
+    protected void randomizeData() {
+        if (!generate(true)) return;
+        try {
+            long total = (long) Util.parseInt(pageSize.getText(), "Page size", 1) * ptModel.getRowCount();
+            int bound = (int) Math.min(total, Integer.MAX_VALUE);
+            StringBuilder sb = new StringBuilder();
+            for (int k = 0; k < 4; k++) sb.append(k > 0 ? " " : "").append(Util.RNG.nextInt(bound));
+            addrs.setText(sb.toString());
+        } catch (IllegalArgumentException ex) { Util.error(this, ex.getMessage()); }
+        refresh(null, false);
     }
 
     private PageTable readTable() {
@@ -167,12 +238,12 @@ public class PagingPanel extends ModulePanel {
         return new PageTable(size, f, frameOf);
     }
 
-    private void refresh(Set<Integer> highlight) {
+    private void refresh(Set<Integer> highlight, boolean quiet) {
         try {
             PageTable t = readTable();
             diagram.show(t, highlight == null ? new HashSet<>() : highlight);
-            info.setText("Logical: " + t.getLogicalSize() + " bytes   |   Physical: " + t.getPhysicalSize() + " bytes");
-        } catch (IllegalArgumentException ex) { Util.error(this, ex.getMessage()); }
+            memCard.setTitle("Memory  ·  " + t.getLogicalSize() + " B logical  ·  " + t.getPhysicalSize() + " B physical");
+        } catch (IllegalArgumentException ex) { if (!quiet) Util.error(this, ex.getMessage()); }
     }
 
     @Override
@@ -202,17 +273,25 @@ public class PagingPanel extends ModulePanel {
     private void show(PageTable t, List<PageTable.Translation> list, boolean detailed) {
         results.setRowCount(0);
         Set<Integer> hl = new HashSet<>();
+        Set<Integer> hotL = new HashSet<>();
+        Set<Long> hotP = new HashSet<>();
         StringBuilder sb = new StringBuilder();
         int faults = 0;
         for (PageTable.Translation x : list) {
             results.addRow(new Object[]{x.logical, x.page, x.offset,
                     x.inMemory() ? "" + x.frame : "-", x.inMemory() ? "" + x.physical : "Page fault"});
             if (!x.inMemory()) faults++;
-            if (detailed) { hl.add(x.page); for (String s : x.steps) sb.append(s).append('\n'); sb.append('\n'); }
+            if (detailed) {
+                hl.add(x.page);
+                hotL.add(x.logical);
+                if (x.inMemory()) hotP.add(x.physical);
+                for (String s : x.steps) sb.append(s).append('\n');
+                sb.append('\n');
+            }
         }
         if (!detailed) sb.append(list.size()).append(" addresses translated, ").append(faults).append(" page faults.\n");
         log.setText(sb.toString());
         log.setCaretPosition(0);
-        diagram.show(t, hl);
+        diagram.show(t, hl, hotL, hotP);
     }
 }

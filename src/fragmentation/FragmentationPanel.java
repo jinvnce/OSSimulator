@@ -1,5 +1,9 @@
 package fragmentation;
 
+import ui.ModuleHeader;
+import ui.ModulePanel;
+import ui.Theme;
+import util.Util;
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;

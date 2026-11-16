@@ -1,5 +1,15 @@
 package ossim;
 
+import banker.BankerPanel;
+import cpu.CpuPanel;
+import disk.DiskPanel;
+import fragmentation.FragmentationPanel;
+import ui.ModulePanel;
+import multiprogramming.MultiprogrammingPanel;
+import paging.PagingPanel;
+import replacement.ReplacementPanel;
+import segmentation.SegmentationPanel;
+import ui.Theme;
 import javax.swing.*;
 /**
  * OS Simulator - CPU Scheduling, Banker's Algorithm, Paging (Java Swing, object-oriented design)

@@ -1,5 +1,6 @@
 package multiprogramming;
 
+import util.Util;
 import ui.ModulePanel;
 
 import javax.swing.*;

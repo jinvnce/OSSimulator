@@ -1,5 +1,7 @@
 package fragmentation;
 
+import segmentation.SegmentDiagram;
+import ui.Theme;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.geom.RoundRectangle2D;

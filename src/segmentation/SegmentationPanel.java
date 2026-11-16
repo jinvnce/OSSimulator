@@ -1,5 +1,7 @@
 package segmentation;
 
+import ui.Theme;
+import util.Util;
 import ui.ModuleHeader;
 import ui.ModulePanel;
 
@@ -24,8 +26,8 @@ public class SegmentationPanel extends ModulePanel {
     private static final long MAX_NUMBER = 1_000_000_000L;
     private static final Pattern ADDRESS = Pattern.compile("^(-?\\d+):(-?\\d+)$");
 
-    private static final String[] IN_NAMES = {"segmentation.Segment", "Base", "Limit"};
-    private static final String[] IN_TIPS = {"segmentation.Segment number (the first half of a logical address)",
+    private static final String[] IN_NAMES = {"Segment", "Base", "Limit"};
+    private static final String[] IN_TIPS = {"Segment number (the first half of a logical address)",
             "Base: the physical address where the segment starts", "Limit: the length of the segment. Valid offsets are 0 up to limit - 1"};
     private static final String[] OUT_NAMES = {"Address", "Limit", "Base", "Physical", "Status"};
     private static final String[] OUT_TIPS = {"Logical address written as segment:offset", "Limit of that segment",
@@ -116,7 +118,7 @@ public class SegmentationPanel extends ModulePanel {
 
     // ---------------------------------------------------------------- left column
     private JPanel segmentsPanel() {
-        Theme.SkinPanel p = new Theme.SkinPanel("segmentation.Segment Table", "cards", false);
+        Theme.SkinPanel p = new Theme.SkinPanel("Segment Table", "cards", false);
         p.body.setLayout(new BorderLayout(0, 8));
         JScrollPane sp = Theme.scroll(inTable, new Color(0xFBEBD2));
         sp.setPreferredSize(new Dimension(200, 190));
@@ -284,7 +286,7 @@ public class SegmentationPanel extends ModulePanel {
                 out.addRow(new Object[]{r.logical, r.entry == null ? "-" : String.valueOf(r.entry.limit),
                         r.entry == null ? "-" : String.valueOf(r.entry.base), r.valid ? String.valueOf(r.physical) : "-", status});
                 log.append("Logical address ").append(r.logical).append("  (segment ").append(r.segment).append(", offset ").append(r.offset).append(")\n");
-                if (r.entry != null) log.append("  segmentation.Segment table: base ").append(r.entry.base).append(", limit ").append(r.entry.limit).append("\n");
+                if (r.entry != null) log.append("  Segment table: base ").append(r.entry.base).append(", limit ").append(r.entry.limit).append("\n");
                 log.append("  ").append(r.message).append("\n\n");
             }
             steps.setText(log.toString());
@@ -307,7 +309,7 @@ public class SegmentationPanel extends ModulePanel {
         for (int r = 0; r < in.getRowCount(); r++) {
             long base = parseNumber(Util.str(in.getValueAt(r, 1)), "Base of segment " + r, 0);
             long limit = parseNumber(Util.str(in.getValueAt(r, 2)), "Limit of segment " + r, 1);
-            if (base + limit > mem) throw new IllegalArgumentException("segmentation.Segment " + r + " does not fit: base " + base + " + limit " + limit
+            if (base + limit > mem) throw new IllegalArgumentException("Segment " + r + " does not fit: base " + base + " + limit " + limit
                     + " = " + (base + limit) + ", but physical memory is only " + mem + " bytes.");
             t.add(base, limit);
         }

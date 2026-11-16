@@ -1,5 +1,6 @@
 package segmentation;
 
+import ui.Theme;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.MouseEvent;
@@ -16,7 +17,7 @@ import java.util.Set;
  * Segments that overlap each other get a red outline. Hover a block to see its numbers.
  */
 public class SegmentDiagram extends JComponent implements Scrollable {
-    static final Color[] COLORS = {new Color(0x2F6FBF), new Color(0xE58A2B), new Color(0x4DBB5F), new Color(0x8E4FC2),
+    public static final Color[] COLORS = {new Color(0x2F6FBF), new Color(0xE58A2B), new Color(0x4DBB5F), new Color(0x8E4FC2),
             new Color(0xD94F70), new Color(0x20A39E), new Color(0xD9B23A), new Color(0x5C7CE0)};
     private static final int LEFT = 28, BAR_Y = 52, BAR_H = 36;
 
@@ -63,7 +64,7 @@ public class SegmentDiagram extends JComponent implements Scrollable {
             SegmentTable.Entry en = table.get(i);
             int x0 = x(en.base), x1 = Math.max(x0 + 3, x(en.base + en.limit));
             if (e.getX() >= x0 && e.getX() <= x1)
-                return "segmentation.Segment " + i + ": base " + en.base + ", limit " + en.limit + " (addresses " + en.base + " to " + en.end() + ")";
+                return "Segment " + i + ": base " + en.base + ", limit " + en.limit + " (addresses " + en.base + " to " + en.end() + ")";
         }
         return null;
     }
