@@ -4,7 +4,7 @@ import ui.ModuleHeader;
 import ui.ModulePanel;
 import ui.Theme;
 import util.Util;
-
+import ui.Icons;
 import javax.swing.*;
 import javax.swing.event.TableModelEvent;
 import javax.swing.table.DefaultTableModel;
@@ -37,11 +37,11 @@ public class PagingPanel extends ModulePanel {
         setOpaque(false);
         setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
 
-        JButton gen = ModuleHeader.navyButton("Generate", 100);
-        JButton rnd = ModuleHeader.navyButton("Randomize", 100);
-        JButton add = ModuleHeader.navyButton("+ Add page", 100);
-        JButton del = ModuleHeader.navyButton("- Remove page", 100);
-        JButton all = ModuleHeader.navyButton("Translate all", 150);
+        JButton gen = Icons.on(ModuleHeader.navyButton("Generate", 120), "sheet", Theme.CREAM);
+        JButton rnd = Icons.on(ModuleHeader.navyButton("Randomize", 130), "dice", Theme.CREAM);
+        JButton add = Icons.on(ModuleHeader.navyButton("Add page", 130), "plus", Theme.CREAM);
+        JButton del = Icons.on(ModuleHeader.navyButton("Remove page", 150), "minus", Theme.CREAM);
+        JButton all = Icons.on(ModuleHeader.navyButton("Translate all", 170), "sheet", Theme.CREAM);
         JButton run = ModuleHeader.runButton("Translate");
 
         addrs.setToolTipText("Logical addresses, separated by spaces or commas");

@@ -14,7 +14,6 @@ import java.math.*;
 import java.util.*;
 import java.util.List;
 
-
 public class CpuPanel extends ModulePanel {
     private static final int MAX_SCALE = 6;
     private static final int MAX_SLICES = 200_000;
@@ -30,11 +29,20 @@ public class CpuPanel extends ModulePanel {
             "Finish time (FT): when the job completed", "Waiting time (WT) = Turnaround - Burst: time spent waiting in the queue",
             "Turnaround time (TAT) = Finish - Arrival: total time from arrival to completion"};
 
-    /** The "Priority" entry of the Algorithm drop-down (it is run by PriorityRunner, not by a Scheduler). */
-    private static final Object PRIORITY = new Object() { @Override public String toString() { return "Priority"; } };
+    /**
+     * The "Priority" entry of the Algorithm drop-down (it is run by PriorityRunner, not by a Scheduler).
+     */
+    private static final Object PRIORITY = new Object() {
+        @Override
+        public String toString() {
+            return "Priority";
+        }
+    };
 
     private final DefaultTableModel in = new DefaultTableModel(IN_NAMES, 0) {
-        public boolean isCellEditable(int r, int c) { return c > 0; }
+        public boolean isCellEditable(int r, int c) {
+            return c > 0;
+        }
     };
     private final DefaultTableModel out = Util.readOnlyModel(OUT_NAMES);
     private final JTable inTable = tipTable(in, IN_TIPS, false), outTable = tipTable(out, OUT_TIPS, true);
@@ -75,7 +83,7 @@ public class CpuPanel extends ModulePanel {
         leftScroll.setOpaque(false);
         leftScroll.getViewport().setOpaque(false);
         leftScroll.getVerticalScrollBar().setUnitIncrement(16);
-        leftScroll.setPreferredSize(new Dimension(400, 100));
+        leftScroll.setPreferredSize(new Dimension(430, 100));
         Theme.styleScroll(leftScroll);
         add(leftScroll, BorderLayout.WEST);
 
@@ -83,12 +91,12 @@ public class CpuPanel extends ModulePanel {
         Theme.SkinPanel ganttPanel = new Theme.SkinPanel("Gantt Chart", "diamond", false);
         JScrollPane ganttScroll = Theme.scroll(gantt, Theme.DEEP);
         ganttScroll.setPreferredSize(new Dimension(400, 170));
-        ganttPanel.body.add(ganttScroll, BorderLayout.CENTER);
+        ganttPanel.body.add(inset(ganttScroll), BorderLayout.CENTER);
         ganttPanel.body.setToolTipText("Gantt chart: who uses the CPU, and when");
 
         JScrollPane resultsScroll = Theme.scroll(outTable, Theme.DEEP);
         resultsScroll.setPreferredSize(new Dimension(400, 150));
-        resultsPanel.body.add(resultsScroll, BorderLayout.CENTER);
+        resultsPanel.body.add(inset(resultsScroll), BorderLayout.CENTER);
 
         JSplitPane right = Theme.split(ganttPanel, resultsPanel);
         right.setResizeWeight(0.45);
@@ -127,17 +135,32 @@ public class CpuPanel extends ModulePanel {
         run.addActionListener(e -> runSimulation());
     }
 
-    @Override protected void paintComponent(Graphics g) {
+    @Override
+    protected void paintComponent(Graphics g) {
         Theme.paintBackground(g, this);
         super.paintComponent(g);
     }
 
     private static class LeftPanel extends JPanel implements Scrollable {
-        public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
-        public int getScrollableUnitIncrement(Rectangle r, int o, int d) { return 16; }
-        public int getScrollableBlockIncrement(Rectangle r, int o, int d) { return 64; }
-        public boolean getScrollableTracksViewportWidth() { return true; }
-        public boolean getScrollableTracksViewportHeight() { return false; }
+        public Dimension getPreferredScrollableViewportSize() {
+            return getPreferredSize();
+        }
+
+        public int getScrollableUnitIncrement(Rectangle r, int o, int d) {
+            return 16;
+        }
+
+        public int getScrollableBlockIncrement(Rectangle r, int o, int d) {
+            return 64;
+        }
+
+        public boolean getScrollableTracksViewportWidth() {
+            return true;
+        }
+
+        public boolean getScrollableTracksViewportHeight() {
+            return false;
+        }
     }
 
     // ---------------------------------------------------------------- top area
@@ -158,11 +181,12 @@ public class CpuPanel extends ModulePanel {
     // ---------------------------------------------------------------- left column
     private JPanel jobsPanel() {
         Theme.SkinPanel p = new Theme.SkinPanel("Process Input", "cards", false);
-        p.body.setLayout(new BorderLayout(0, 8));
-        JScrollPane sp = Theme.scroll(inTable, new Color(0xFBEBD2));
-        sp.setPreferredSize(new Dimension(200, 190));
-        p.body.add(sp, BorderLayout.CENTER);
+        p.body.setLayout(new BorderLayout());
         p.body.setToolTipText("Double-click a cell to edit");
+
+        JScrollPane sp = Theme.scroll(inTable, new Color(0xFBEBD2));
+        sp.setBorder(BorderFactory.createLineBorder(new Color(0xC9A56E), 1));
+        sp.setPreferredSize(new Dimension(200, 190));
 
         JButton add = ModuleHeader.withIcon(ModuleHeader.navyButton("Add row", 110), "plus", Theme.CREAM);
         JButton del = ModuleHeader.withIcon(ModuleHeader.dangerButton("Remove", 110), "minus", Theme.CRIMSON);
@@ -174,32 +198,53 @@ public class CpuPanel extends ModulePanel {
             for (int i = rows.length - 1; i >= 0; i--) in.removeRow(inTable.convertRowIndexToModel(rows[i]));
             renumber();
         };
-        Runnable doClear = () -> { Util.stopEditing(inTable); in.setRowCount(0); clearResults(); };
-        JPanel tableButtons = ModuleHeader.tableButtons(add, del, clr, inTable, in, doRemove, doClear, this);
+        Runnable doClear = () -> {
+            Util.stopEditing(inTable);
+            in.setRowCount(0);
+            clearResults();
+        };
 
-        // "How many jobs" + Randomize sit right under the table: type a number, click Randomize
+        // this call wires up the buttons (enable/disable, shortcuts); the buttons are then re-laid out below
+        ModuleHeader.tableButtons(add, del, clr, inTable, in, doRemove, doClear, this);
+
         JButton rnd = ModuleHeader.withIcon(ModuleHeader.navyButton("Randomize", 140), "dice", Theme.CREAM);
         rnd.setToolTipText("Replace the table with this many random jobs");
         size.setToolTipText("How many random jobs to create (1 to " + MAX_JOBS + ")");
-        JPanel randomRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+
+        // both rows use the same 3 equal columns, so everything lines up
+        JPanel buttons = new JPanel(new GridLayout(1, 3, 10, 0));
+        buttons.setOpaque(false);
+        buttons.add(add);
+        buttons.add(del);
+        buttons.add(clr);
+
+        JPanel randomRow = new JPanel(new GridLayout(1, 3, 10, 0));
         randomRow.setOpaque(false);
         randomRow.add(Theme.label("How many jobs:", Theme.INK, 15f));
         randomRow.add(size);
         randomRow.add(rnd);
 
-        JPanel south = new JPanel();
+        JPanel south = new JPanel(new GridLayout(2, 1, 0, 8));
         south.setOpaque(false);
-        south.setLayout(new BoxLayout(south, BoxLayout.Y_AXIS));
-        tableButtons.setAlignmentX(Component.LEFT_ALIGNMENT);
-        randomRow.setAlignmentX(Component.LEFT_ALIGNMENT);
-        south.add(tableButtons);
-        south.add(Box.createVerticalStrut(8));
+        south.add(buttons);
         south.add(randomRow);
-        p.body.add(south, BorderLayout.SOUTH);
+
+        // one wrapper gives the table and the buttons the same left/right/bottom margin
+        JPanel content = new JPanel(new BorderLayout(0, 10));
+        content.setOpaque(false);
+        content.setBorder(BorderFactory.createEmptyBorder(0, 0, 6, 8));
+        content.add(sp, BorderLayout.CENTER);
+        content.add(south, BorderLayout.SOUTH);
+        p.body.add(content, BorderLayout.CENTER);
 
         add.addActionListener(e -> {
-            try { Util.stopEditing(inTable); in.addRow(randomRow()); renumber(); }
-            catch (IllegalArgumentException ex) { Util.error(this, ex.getMessage()); }
+            try {
+                Util.stopEditing(inTable);
+                in.addRow(randomRow());
+                renumber();
+            } catch (IllegalArgumentException ex) {
+                Util.error(this, ex.getMessage());
+            }
         });
         rnd.addActionListener(e -> randomizeData());
         return p;
@@ -209,9 +254,23 @@ public class CpuPanel extends ModulePanel {
         Theme.SkinPanel p = new Theme.SkinPanel("Random Job Settings", "club", false);
         p.body.setLayout(new GridBagLayout());
         GridBagConstraints c = gbc();
-        c.gridy = 0; c.gridx = 0; c.weightx = 0; p.body.add(Theme.label("Largest value:", Theme.INK, 15f), c);
-        c.gridy = 1; c.weightx = 1; p.body.add(maxValue, c);
-        c.gridy = 2; p.body.add(decimalValues, c);
+        c.gridy = 0;
+        c.gridx = 0;
+        c.weightx = 0;
+        p.body.add(Theme.label("Largest value:", Theme.INK, 15f), c);
+        c.gridy = 1;
+        c.weightx = 1;
+        p.body.add(maxValue, c);
+        c.gridy = 2;
+        p.body.add(decimalValues, c);
+        c.gridy = 3;
+        c.weightx = 0;
+        p.body.add(Theme.label("Decimal places:", Theme.INK, 15f), c);
+        c.gridy = 4;
+        c.weightx = 1;
+        places.setPreferredSize(new Dimension(150, 34));
+        p.body.add(places, c);
+        places.setToolTipText("Decimal places in the averages and in converted numbers");
         maxValue.setToolTipText("Largest number the randomizer uses for a time, e.g. 10 or 1000000");
         decimalValues.setToolTipText("Make the random times decimal numbers such as 3.7");
         return p;
@@ -221,13 +280,21 @@ public class CpuPanel extends ModulePanel {
         Theme.SkinPanel p = new Theme.SkinPanel("Time Unit", "clock", false);
         p.body.setLayout(new GridBagLayout());
         GridBagConstraints c = gbc();
-        c.gridy = 0; c.gridx = 0; c.weightx = 0; p.body.add(Theme.label("My times are in:", Theme.INK, 15f), c);
-        c.gridy = 1; c.weightx = 1; inUnit.setPreferredSize(new Dimension(150, 34)); p.body.add(inUnit, c);
-        c.gridy = 2; c.weightx = 0; p.body.add(Theme.label("Convert to:", Theme.INK, 15f), c);
-        c.gridy = 3; c.weightx = 1; outUnit.setPreferredSize(new Dimension(150, 34)); p.body.add(outUnit, c);
-        c.gridy = 4; c.weightx = 0; p.body.add(Theme.label("Decimal places:", Theme.INK, 15f), c);
-        c.gridy = 5; c.weightx = 1; places.setPreferredSize(new Dimension(150, 34)); p.body.add(places, c);
-        inUnit.setToolTipText("The unit of the times you type: seconds, minutes or hours");
+        c.gridy = 0;
+        c.gridx = 0;
+        c.weightx = 0;
+        p.body.add(Theme.label("My times are in:", Theme.INK, 15f), c);
+        c.gridy = 1;
+        c.weightx = 1;
+        inUnit.setPreferredSize(new Dimension(150, 34));
+        p.body.add(inUnit, c);
+        c.gridy = 2;
+        c.weightx = 0;
+        p.body.add(Theme.label("Convert to:", Theme.INK, 15f), c);
+        c.gridy = 3;
+        c.weightx = 1;
+        outUnit.setPreferredSize(new Dimension(150, 34));
+        p.body.add(outUnit, c);
         outUnit.setToolTipText("What to show the results as: clock time (h:mm:ss), or seconds / minutes / hours");
         places.setToolTipText("Decimal places in the averages and in converted numbers");
         return p;
@@ -237,14 +304,14 @@ public class CpuPanel extends ModulePanel {
         GridBagConstraints c = new GridBagConstraints();
         c.anchor = GridBagConstraints.WEST;
         c.fill = GridBagConstraints.HORIZONTAL;
-        c.insets = new Insets(3, 4, 3, 4);
+        c.insets = new Insets(3, 4, 3, 12);
         return c;
     }
 
     // ---------------------------------------------------------------- small builders
     private JPanel card(String title, JLabel value, String tip, String iconName) {
         Theme.SkinPanel p = new Theme.SkinPanel(null, null, true);
-        p.setBorder(BorderFactory.createEmptyBorder(10, 16, 18, 20));
+        p.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 20));
         p.setPreferredSize(new Dimension(200, 104));
         p.body.setLayout(new BorderLayout(14, 0));
         p.body.add(new JLabel(Theme.icon(iconName, 38, Theme.CREAM)), BorderLayout.WEST);
@@ -269,11 +336,25 @@ public class CpuPanel extends ModulePanel {
         return l;
     }
 
+    private static String twoLine(String name, String unit) {
+        return "<html><center>" + name + "<br>" + unit + "</center></html>";
+    }
+
+    private static JPanel inset(JComponent c) {
+        JPanel w = new JPanel(new BorderLayout());
+        w.setOpaque(false);
+        w.setBorder(BorderFactory.createEmptyBorder(0, 8, 12, 8));
+        w.add(c, BorderLayout.CENTER);
+        return w;
+    }
+
     private static JTable tipTable(DefaultTableModel model, String[] tips, boolean dark) {
         JTable t = new JTable(model) {
-            @Override protected JTableHeader createDefaultTableHeader() {
+            @Override
+            protected JTableHeader createDefaultTableHeader() {
                 return new JTableHeader(columnModel) {
-                    @Override public String getToolTipText(MouseEvent e) {
+                    @Override
+                    public String getToolTipText(MouseEvent e) {
                         int col = columnModel.getColumnIndexAtX(e.getX());
                         if (col < 0) return null;
                         int mi = columnModel.getColumn(col).getModelIndex();
@@ -283,12 +364,18 @@ public class CpuPanel extends ModulePanel {
             }
         };
         Theme.styleTable(t, dark);
+        t.getTableHeader().setPreferredSize(new Dimension(0, 46));
         return t;
     }
 
-    @Override public String getTitle() { return "CPU Scheduling"; }
+    @Override
+    public String getTitle() {
+        return "CPU Scheduling";
+    }
 
-    private boolean isPriority() { return algo.getSelectedItem() == PRIORITY; }
+    private boolean isPriority() {
+        return algo.getSelectedItem() == PRIORITY;
+    }
 
     private void updateControls() {
         Object sel = algo.getSelectedItem();
@@ -308,7 +395,9 @@ public class CpuPanel extends ModulePanel {
         quantum.setVisible(isRR);
     }
 
-    /** The scheduler to run: SJF + Preemptive is SRT, and SRT + Non-preemptive is SJF. (Not used for Priority.) */
+    /**
+     * The scheduler to run: SJF + Preemptive is SRT, and SRT + Non-preemptive is SJF. (Not used for Priority.)
+     */
     private Scheduler chosenScheduler() {
         Scheduler s = (Scheduler) algo.getSelectedItem();
         boolean pre = "Preemptive".equals(mode.getSelectedItem());
@@ -318,8 +407,8 @@ public class CpuPanel extends ModulePanel {
     }
 
     private void updateHeaders() {
-        String u = " (" + TimeFmt.ABBR[inUnit.getSelectedIndex()] + ")";
-        in.setColumnIdentifiers(new String[]{IN_NAMES[0], IN_NAMES[1] + u, IN_NAMES[2] + u, IN_NAMES[3]});
+        String u = "(" + TimeFmt.ABBR[inUnit.getSelectedIndex()] + ")";
+        in.setColumnIdentifiers(new String[]{IN_NAMES[0], twoLine(IN_NAMES[1], u), twoLine(IN_NAMES[2], u), IN_NAMES[3]});
         inTable.getColumnModel().getColumn(0).setPreferredWidth(40);
     }
 
@@ -363,7 +452,9 @@ public class CpuPanel extends ModulePanel {
         return new Object[]{"", at, bt, String.valueOf(1 + Util.RNG.nextInt(5))};
     }
 
-    private void renumber() { for (int i = 0; i < in.getRowCount(); i++) in.setValueAt("J" + (i + 1), i, 0); }
+    private void renumber() {
+        for (int i = 0; i < in.getRowCount(); i++) in.setValueAt("J" + (i + 1), i, 0);
+    }
 
     @Override
     protected void randomizeData() {
@@ -377,14 +468,19 @@ public class CpuPanel extends ModulePanel {
             for (Object[] r : rows) in.addRow(r);
             renumber();
             clearResults();
-        } catch (IllegalArgumentException ex) { Util.error(this, ex.getMessage()); }
+        } catch (IllegalArgumentException ex) {
+            Util.error(this, ex.getMessage());
+        }
     }
 
     @Override
     protected void runSimulation() {
         Util.stopEditing(inTable);
         int n = in.getRowCount();
-        if (n == 0) { Util.error(this, "Add at least one job (or use Randomize)."); return; }
+        if (n == 0) {
+            Util.error(this, "Add at least one job (or use Randomize).");
+            return;
+        }
         final boolean prio = isPriority();
         final boolean pre = "Preemptive".equals(mode.getSelectedItem());
         Scheduler scheduler = prio ? null : chosenScheduler();
@@ -401,12 +497,18 @@ public class CpuPanel extends ModulePanel {
                 String row = " (row " + (i + 1) + ")";
                 at[i] = Util.parseDecimal(Util.str(in.getValueAt(i, 1)), "Arrival time (AT)" + row);
                 bt[i] = Util.parseDecimal(Util.str(in.getValueAt(i, 2)), "Burst time (BT)" + row);
-                if (at[i].signum() < 0) throw new IllegalArgumentException("Arrival time (AT)" + row + " cannot be negative.");
-                if (bt[i].signum() <= 0) throw new IllegalArgumentException("Burst time (BT)" + row + " must be greater than 0.");
-                scale = Math.max(scale, decimalsOf(at[i])); scale = Math.max(scale, decimalsOf(bt[i]));
+                if (at[i].signum() < 0)
+                    throw new IllegalArgumentException("Arrival time (AT)" + row + " cannot be negative.");
+                if (bt[i].signum() <= 0)
+                    throw new IllegalArgumentException("Burst time (BT)" + row + " must be greater than 0.");
+                scale = Math.max(scale, decimalsOf(at[i]));
+                scale = Math.max(scale, decimalsOf(bt[i]));
                 if (prio) {
-                    try { pr[i] = Integer.parseInt(Util.str(in.getValueAt(i, 3)).trim()); }
-                    catch (NumberFormatException ex) { throw new IllegalArgumentException("Priority" + row + " must be a whole number."); }
+                    try {
+                        pr[i] = Integer.parseInt(Util.str(in.getValueAt(i, 3)).trim());
+                    } catch (NumberFormatException ex) {
+                        throw new IllegalArgumentException("Priority" + row + " must be a whole number.");
+                    }
                 }
             }
             if (scheduler instanceof RoundRobinScheduler) {
@@ -420,9 +522,12 @@ public class CpuPanel extends ModulePanel {
             BigInteger sum = BigInteger.ZERO, maxAt = BigInteger.ZERO;
             for (int i = 0; i < n; i++) {
                 BigInteger ai = fixed(at[i], scale), bi = fixed(bt[i], scale);
-                sum = sum.add(bi); maxAt = maxAt.max(ai);
-                if (maxAt.add(sum).bitLength() > 61) throw new IllegalArgumentException("The numbers are too big. Please use smaller times.");
-                a[i] = ai.longValue(); b[i] = bi.longValue();
+                sum = sum.add(bi);
+                maxAt = maxAt.max(ai);
+                if (maxAt.add(sum).bitLength() > 61)
+                    throw new IllegalArgumentException("The numbers are too big. Please use smaller times.");
+                a[i] = ai.longValue();
+                b[i] = bi.longValue();
             }
             long ql = 0;
             if (q != null) {
@@ -438,7 +543,10 @@ public class CpuPanel extends ModulePanel {
 
             int decimals = (Integer) places.getSelectedItem();
             fmt = new TimeFmt(scale, inUnit.getSelectedIndex(), outUnit.getSelectedIndex(), decimals);
-        } catch (IllegalArgumentException ex) { Util.error(this, ex.getMessage()); return; }
+        } catch (IllegalArgumentException ex) {
+            Util.error(this, ex.getMessage());
+            return;
+        }
 
         // run the chosen algorithm and collect the per-job times
         long[] st = new long[n], fin = new long[n];
@@ -454,14 +562,17 @@ public class CpuPanel extends ModulePanel {
             preemptive = pre;
         } else {
             timeline = scheduler.schedule(procs);               // polymorphic call
-            for (int i = 0; i < n; i++) { st[i] = procs.get(i).getStart(); fin[i] = procs.get(i).getCompletion(); }
+            for (int i = 0; i < n; i++) {
+                st[i] = procs.get(i).getStart();
+                fin[i] = procs.get(i).getCompletion();
+            }
             algoName = scheduler.getName();
             preemptive = scheduler.isPreemptive();
         }
 
-        String u = " (" + TimeFmt.outLabel(outUnit.getSelectedIndex()) + ")";
+        String u = "(" + TimeFmt.outLabel(outUnit.getSelectedIndex()) + ")";
         String[] names = new String[OUT_NAMES.length];
-        for (int i = 0; i < names.length; i++) names[i] = i == 0 ? OUT_NAMES[0] : OUT_NAMES[i] + u;
+        for (int i = 0; i < names.length; i++) names[i] = i == 0 ? OUT_NAMES[0] : twoLine(OUT_NAMES[i], u);
         out.setColumnIdentifiers(names);
         out.setRowCount(0);
         BigInteger sumT = BigInteger.ZERO, sumW = BigInteger.ZERO;
@@ -480,7 +591,11 @@ public class CpuPanel extends ModulePanel {
         gantt.play(timeline, fmt, scale);
     }
 
-    private static int decimalsOf(BigDecimal v) { return Math.max(0, v.stripTrailingZeros().scale()); }
+    private static int decimalsOf(BigDecimal v) {
+        return Math.max(0, v.stripTrailingZeros().scale());
+    }
 
-    private static BigInteger fixed(BigDecimal v, int scale) { return v.movePointRight(scale).toBigIntegerExact(); }
+    private static BigInteger fixed(BigDecimal v, int scale) {
+        return v.movePointRight(scale).toBigIntegerExact();
+    }
 }

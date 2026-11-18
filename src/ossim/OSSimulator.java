@@ -10,6 +10,7 @@ import paging.PagingPanel;
 import replacement.ReplacementPanel;
 import segmentation.SegmentationPanel;
 import ui.Theme;
+
 import javax.swing.*;
 /**
  * OS Simulator - CPU Scheduling, Banker's Algorithm, Paging (Java Swing, object-oriented design)
@@ -89,7 +90,10 @@ public class OSSimulator extends JFrame {
                 new SegmentationPanel(), new FragmentationPanel(), new MultiprogrammingPanel(), new DiskPanel()};
 
         JPanel root = new JPanel(new BorderLayout()) {
-            @Override protected void paintComponent(Graphics g) { Theme.paintBackground(g, this); }
+            @Override
+            protected void paintComponent(Graphics g) {
+                Theme.paintBackground(g, this);
+            }
         };
 
         CardLayout cards = new CardLayout();
