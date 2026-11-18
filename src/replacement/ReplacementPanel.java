@@ -39,7 +39,7 @@ public class ReplacementPanel extends ModulePanel {
         tools.add(frames);
         tools.add(Theme.label("Algorithm", Theme.CREAM, 16f));
         tools.add(algo);
-        add(ModuleHeader.north("Page Replacement", "FIFO, LRU and Optimal", "club", tools, run), BorderLayout.NORTH);
+        add(ModuleHeader.north("Page Replacement", "FIFO, LRU and Optimal", "heart", tools, run), BorderLayout.NORTH);
 
         // REFERENCE STRING card
         Theme.SkinPanel refCard = new Theme.SkinPanel("Reference String", null, false);

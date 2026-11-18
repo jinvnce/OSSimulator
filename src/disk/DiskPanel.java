@@ -1,21 +1,24 @@
 package disk;
 
+import ui.ModuleHeader;
 import ui.ModulePanel;
+import ui.Theme;
 import util.Util;
+
 import javax.swing.*;
-import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.util.*;
 import java.util.List;
 
-
 public class DiskPanel extends ModulePanel {
 
-    private final JTextField requests = new JTextField("98 183 37 122 14 124 65 67", 30);
-    private final JTextField head = new JTextField("53", 4);
-    private final JTextField maxCyl = new JTextField("199", 4);
-    private final JTextField len = new JTextField("8", 3);
+    private static final Color DARK_ROW = new Color(0x16293F);
+
+    private final JTextField requests = new Theme.RoundField("98 183 37 122 14 124 65 67", 22);
+    private final JTextField head = new Theme.RoundField("53", 4);
+    private final JTextField maxCyl = new Theme.RoundField("199", 4);
+    private final JTextField len = new Theme.RoundField("8", 3);
 
     private final JComboBox<DiskScheduler> algo = new JComboBox<>(new DiskScheduler[]{
             new FIFODisk(), new DDTFDisk(), new LookDisk(), new ElevatorDisk(), new CScanDisk()});
@@ -28,101 +31,124 @@ public class DiskPanel extends ModulePanel {
 
     private final JLabel totalValue = big();
     private final JLabel avgValue = big();
-    private final JLabel description = new JLabel(" ");
+    private final JLabel description = Theme.label(" ", Theme.GOLD, 14f);
     private final DiskChart chart = new DiskChart();
 
     public DiskPanel() {
-        setLayout(new BorderLayout(8, 8));
-        setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
+        setLayout(new BorderLayout(10, 10));
+        setBorder(BorderFactory.createEmptyBorder(8, 12, 12, 12));
 
-        // TOP BAR (row 1: data, row 2: algorithm + run)
-        JPanel row1 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 3));
-        JButton rnd = new JButton("Randomize");
-        JButton run = new JButton("▶ Run");
+        // ---------------------------------------------------------- HEADER + TOOL BAR
+        JButton rnd = ModuleHeader.navyButton("Randomize", 130);
+        JButton run = ModuleHeader.runButton("Run");
 
         requests.setToolTipText("Cylinders in arrival order, separated by spaces or commas");
         head.setToolTipText("Starting head position");
         maxCyl.setToolTipText("Highest cylinder number");
         len.setToolTipText("Number of requests to generate");
         rnd.setToolTipText("Generate a random queue and head position");
-        run.setFont(run.getFont().deriveFont(Font.BOLD));
 
-        row1.add(new JLabel("Queue"));
+        Theme.styleCombo(algo);
+        algo.setPreferredSize(new Dimension(130, 36));
+
+        JPanel row1 = ModuleHeader.toolRow();
+        row1.add(Theme.label("Queue", Theme.CREAM, 15f));
         row1.add(requests);
-        row1.add(new JLabel("Head"));
-        row1.add(head);
-        row1.add(new JLabel("Max"));
-        row1.add(maxCyl);
-        row1.add(new JLabel("Count"));
-        row1.add(len);
         row1.add(rnd);
 
-        JPanel row2 = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 3));
-        row2.add(new JLabel("Algorithm"));
+        JPanel row2 = ModuleHeader.toolRow();
+        row2.add(Theme.label("Head", Theme.CREAM, 15f));
+        row2.add(head);
+        row2.add(Theme.label("Max", Theme.CREAM, 15f));
+        row2.add(maxCyl);
+        row2.add(Theme.label("Count", Theme.CREAM, 15f));
+        row2.add(len);
+        row2.add(Theme.label("Algorithm", Theme.CREAM, 15f));
         row2.add(algo);
-        row2.add(run);
 
-        description.setForeground(Color.DARK_GRAY);
         description.setFont(description.getFont().deriveFont(Font.ITALIC));
-        description.setBorder(BorderFactory.createEmptyBorder(0, 8, 2, 0));
+        JPanel row3 = ModuleHeader.toolRow();
+        row3.add(description);
 
-        JPanel top = new JPanel(new GridLayout(3, 1));
-        top.add(row1);
-        top.add(row2);
-        top.add(description);
-        add(top, BorderLayout.NORTH);
-
-        // TABLE TWEAKS
-        DefaultTableCellRenderer center = new DefaultTableCellRenderer();
-        center.setHorizontalAlignment(SwingConstants.CENTER);
-
-        for (JTable t : new JTable[]{stepsTable, compareTable}) {
-            t.setRowHeight(22);
-            t.setFillsViewportHeight(true);
-            for (int c = 0; c < t.getColumnCount(); c++) {
-                t.getColumnModel().getColumn(c).setCellRenderer(center);
-            }
+        JPanel tools = new JPanel();
+        tools.setOpaque(false);
+        tools.setLayout(new BoxLayout(tools, BoxLayout.Y_AXIS));
+        for (JComponent c : new JComponent[]{row1, row2, row3}) {
+            c.setAlignmentX(Component.LEFT_ALIGNMENT);
+            tools.add(c);
         }
+
+        add(ModuleHeader.north(
+                "Disk Scheduling",
+                "Compare how far the head travels under each algorithm",
+                "gear", tools, run), BorderLayout.NORTH);
+
+        // ---------------------------------------------------------- TABLE STYLING
+        Theme.styleTable(stepsTable, true);
+        Theme.styleTable(compareTable, true);
 
         stepsTable.getColumnModel().getColumn(0).setPreferredWidth(50);
         stepsTable.getColumnModel().getColumn(1).setPreferredWidth(60);
         stepsTable.getColumnModel().getColumn(2).setPreferredWidth(140);
 
-        // LEFT: sequence + comparison
-        JSplitPane left = new JSplitPane(JSplitPane.VERTICAL_SPLIT,
-                Util.scroll(stepsTable, "Sequence"),
-                Util.scroll(compareTable, "Comparison"));
+        // ---------------------------------------------------------- RESULT CARDS (navy)
+        Theme.SkinPanel seqCard = new Theme.SkinPanel("Sequence", null, true);
+        seqCard.body.add(Theme.scroll(stepsTable, DARK_ROW), BorderLayout.CENTER);
+
+        Theme.SkinPanel cmpCard = new Theme.SkinPanel("Comparison", null, true);
+        cmpCard.body.add(Theme.scroll(compareTable, DARK_ROW), BorderLayout.CENTER);
+
+        Theme.SkinPanel chartCard = new Theme.SkinPanel("Head path", null, true);
+        chartCard.body.add(Theme.scroll(chart, DARK_ROW), BorderLayout.CENTER);
+
+        // ---------------------------------------------------------- LAYOUT
+        JSplitPane left = Theme.split(seqCard, cmpCard);
         left.setResizeWeight(0.65);
 
-        JSplitPane main = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT,
-                left, Util.scroll(chart, "Head path"));
+        JSplitPane main = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, left, chartCard);
         main.setResizeWeight(0.35);
+        main.setBorder(null);
+        main.setOpaque(false);
+        main.setDividerSize(10);
+        main.setContinuousLayout(true);
         add(main, BorderLayout.CENTER);
 
         // BOTTOM: totals
-        JPanel summary = new JPanel(new GridLayout(1, 2, 8, 0));
+        JPanel summary = new JPanel(new GridLayout(1, 2, 10, 0));
+        summary.setOpaque(false);
         summary.add(card("Total", totalValue));
         summary.add(card("Avg / seek", avgValue));
         add(summary, BorderLayout.SOUTH);
 
-        algo.addActionListener(e -> description.setText(((DiskScheduler) algo.getSelectedItem()).getDescription()));
-        description.setText(((DiskScheduler) algo.getSelectedItem()).getDescription());
+        // ---------------------------------------------------------- ACTIONS
+        algo.addActionListener(e -> description.setText(descriptionOf()));
+        description.setText(descriptionOf());
         rnd.addActionListener(e -> randomizeData());
         run.addActionListener(e -> runSimulation());
     }
 
+    @Override
+    protected void paintComponent(Graphics g) {
+        Theme.paintBackground(g, this);
+    }
+
     @Override public String getTitle() { return "Disk Scheduling"; }
+
+    private String descriptionOf() {
+        String d = ((DiskScheduler) algo.getSelectedItem()).getDescription();
+        return d == null || d.isEmpty() ? " " : d;
+    }
 
     private static JLabel big() {
         JLabel l = new JLabel("-", SwingConstants.CENTER);
-        l.setFont(l.getFont().deriveFont(Font.BOLD, 24f));
+        l.setFont(Theme.heading(28f));
+        l.setForeground(Theme.GOLD);
         return l;
     }
 
-    private JPanel card(String title, JLabel v) {
-        JPanel p = new JPanel(new BorderLayout());
-        p.setBorder(BorderFactory.createTitledBorder(title));
-        p.add(v, BorderLayout.CENTER);
+    private Theme.SkinPanel card(String title, JLabel v) {
+        Theme.SkinPanel p = new Theme.SkinPanel(title, null, true);
+        p.body.add(v, BorderLayout.CENTER);
         return p;
     }
 

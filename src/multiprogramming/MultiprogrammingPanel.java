@@ -1,9 +1,12 @@
 package multiprogramming;
 
 import util.Util;
+import ui.ModuleHeader;
 import ui.ModulePanel;
+import ui.Theme;
 
 import javax.swing.*;
+import javax.swing.border.LineBorder;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumnModel;
@@ -14,6 +17,7 @@ import java.util.List;
 public class MultiprogrammingPanel extends ModulePanel {
 
     private static final double EPS = 0.0000001;
+    private static final Color DARK_ROW = new Color(0x16293F);
 
     // INPUT TABLE
     private final DefaultTableModel input = new DefaultTableModel(
@@ -41,53 +45,39 @@ public class MultiprogrammingPanel extends ModulePanel {
 
     private final JTextArea timeline = new JTextArea();
 
-    private final JTextField jobCount = new JTextField("4", 4);
-    private final JTextField maxBurst = new JTextField("10", 4);
+    private final JTextField jobCount = new Theme.RoundField("4", 4);
+    private final JTextField maxBurst = new Theme.RoundField("10", 4);
 
     public MultiprogrammingPanel() {
 
-        setLayout(new BorderLayout(8, 8));
-        setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
+        setLayout(new BorderLayout(10, 10));
+        setBorder(BorderFactory.createEmptyBorder(8, 12, 12, 12));
 
-        // TOP BAR
-        JPanel top = new JPanel(new BorderLayout());
-
-        JPanel leftBar = new JPanel(new FlowLayout(FlowLayout.LEFT, 6, 4));
-        JPanel rightBar = new JPanel(new FlowLayout(FlowLayout.RIGHT, 6, 4));
-
-        JButton add = new JButton("+ Add");
-        JButton remove = new JButton("– Remove");
-        JButton random = new JButton("Randomize");
-        JButton run = new JButton("▶ Run");
-
-        add.setToolTipText("Add a random job");
-        remove.setToolTipText("Remove selected jobs");
+        // ---------------------------------------------------------- HEADER + TOOL BAR
+        JPanel tools = ModuleHeader.toolRow();
+        JButton random = ModuleHeader.withIcon(ModuleHeader.navyButton("Randomize", 140), "dice", Theme.CREAM);
         random.setToolTipText("Generate jobs using the values on the left");
-        run.setFont(run.getFont().deriveFont(Font.BOLD));
+        jobCount.setToolTipText("How many jobs to generate");
+        maxBurst.setToolTipText("Largest burst time a generated job can have");
 
-        JSeparator sep = new JSeparator(SwingConstants.VERTICAL);
-        sep.setPreferredSize(new Dimension(2, 24));
+        tools.add(Theme.label("Jobs", Theme.CREAM, 15f));
+        tools.add(jobCount);
+        tools.add(Theme.label("Max burst", Theme.CREAM, 15f));
+        tools.add(maxBurst);
+        tools.add(random);
 
-        leftBar.add(add);
-        leftBar.add(remove);
-        leftBar.add(sep);
-        leftBar.add(new JLabel("Jobs"));
-        leftBar.add(jobCount);
-        leftBar.add(new JLabel("Max burst"));
-        leftBar.add(maxBurst);
-        leftBar.add(random);
-        rightBar.add(run);
+        JButton run = ModuleHeader.runButton("Run");
+        add(ModuleHeader.north(
+                "Multiprogramming",
+                "Jobs share the CPU equally; watch the headway of each job",
+                "memory", tools, run), BorderLayout.NORTH);
 
-        top.add(leftBar, BorderLayout.CENTER);
-        top.add(rightBar, BorderLayout.EAST);
-        add(top, BorderLayout.NORTH);
-
-        // TABLE TWEAKS
-        for (JTable t : new JTable[]{inputTable, simulationTable, summaryTable}) {
-            t.setRowHeight(22);
-            t.setFillsViewportHeight(true);
-        }
+        // ---------------------------------------------------------- TABLE STYLING
+        Theme.styleTable(inputTable, false);
+        Theme.styleTable(simulationTable, true);
+        Theme.styleTable(summaryTable, true);
         inputTable.setAutoCreateRowSorter(false);
+        installInputEditor();
 
         TableColumnModel cm = simulationTable.getColumnModel();
         int[] w = {60, 200, 45, 65, 80, 80, 160, 200};
@@ -97,51 +87,83 @@ public class MultiprogrammingPanel extends ModulePanel {
 
         // WRAP LONG TEXT (Event, Job#, Left)
         for (int c : new int[]{1, 6, 7}) {
-            cm.getColumn(c).setCellRenderer(new WrapRenderer());
+            cm.getColumn(c).setCellRenderer(new WrapRenderer(true));
         }
 
-        // LEFT: inputs + results
-        JSplitPane left = new JSplitPane(
-                JSplitPane.VERTICAL_SPLIT,
-                Util.scroll(inputTable, "Jobs"),
-                Util.scroll(summaryTable, "Summary")
-        );
+        // Timeline look
+        timeline.setEditable(false);
+        timeline.setFont(Theme.body(14f));
+        timeline.setBackground(DARK_ROW);
+        timeline.setForeground(Theme.CREAM);
+        timeline.setCaretColor(Theme.CREAM);
+        timeline.setSelectionColor(Theme.GOLD);
+        timeline.setSelectedTextColor(Theme.INK);
+        timeline.setMargin(new Insets(6, 8, 6, 8));
+
+        // ---------------------------------------------------------- INPUT CARD (cream)
+        Theme.SkinPanel jobsCard = new Theme.SkinPanel("Jobs", null, false);
+        jobsCard.body.setLayout(new BorderLayout(0, 8));
+        jobsCard.body.add(Theme.scroll(inputTable, Theme.CREAM), BorderLayout.CENTER);
+
+        JButton add = ModuleHeader.withIcon(ModuleHeader.navyButton("Add", 110), "plus", Theme.CREAM);
+        JButton remove = ModuleHeader.withIcon(ModuleHeader.dangerButton("Remove", 110), "minus", Theme.CRIMSON);
+        JButton clear = ModuleHeader.withIcon(ModuleHeader.dangerButton("Clear all", 110), "trash", Theme.CRIMSON);
+        add.setToolTipText("Add a random job");
+
+        Runnable doRemove = () -> {
+            Util.stopEditing(inputTable);
+            int[] rows = inputTable.getSelectedRows();
+            for (int i = rows.length - 1; i >= 0; i--) {
+                input.removeRow(inputTable.convertRowIndexToModel(rows[i]));
+            }
+            renumber();
+        };
+        Runnable doClear = () -> {
+            Util.stopEditing(inputTable);
+            input.setRowCount(0);
+        };
+        // Remove and Clear all both ask "are you sure?" before running these
+        jobsCard.body.add(ModuleHeader.tableButtons(add, remove, clear, inputTable, input, doRemove, doClear, this),
+                BorderLayout.SOUTH);
+
+        // ---------------------------------------------------------- RESULT CARDS (navy)
+        Theme.SkinPanel summaryCard = new Theme.SkinPanel("Summary", null, true);
+        summaryCard.body.add(Theme.scroll(summaryTable, DARK_ROW), BorderLayout.CENTER);
+
+        Theme.SkinPanel simCard = new Theme.SkinPanel("Simulation", null, true);
+        simCard.body.add(Theme.scroll(simulationTable, DARK_ROW), BorderLayout.CENTER);
+
+        Theme.SkinPanel timelineCard = new Theme.SkinPanel("Timeline", null, true);
+        timelineCard.body.add(Theme.scroll(timeline, DARK_ROW), BorderLayout.CENTER);
+
+        // ---------------------------------------------------------- LAYOUT
+        JSplitPane left = Theme.split(jobsCard, summaryCard);
         left.setResizeWeight(0.55);
 
-        // RIGHT: simulation gets the most space
-        JSplitPane right = new JSplitPane(
-                JSplitPane.VERTICAL_SPLIT,
-                Util.scroll(simulationTable, "Simulation"),
-                Util.scroll(timeline, "Timeline")
-        );
+        JSplitPane right = Theme.split(simCard, timelineCard);
         right.setResizeWeight(0.75);
 
-        JSplitPane main = new JSplitPane(
-                JSplitPane.HORIZONTAL_SPLIT,
-                left,
-                right
-        );
+        JSplitPane main = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, left, right);
         main.setResizeWeight(0.3);
-
-        timeline.setEditable(false);
-        timeline.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        main.setBorder(null);
+        main.setOpaque(false);
+        main.setDividerSize(10);
+        main.setContinuousLayout(true);
 
         add(main, BorderLayout.CENTER);
 
+        // ---------------------------------------------------------- ACTIONS
         // ADD JOB
         add.addActionListener(e -> {
 
             Random rng = new Random();
-
             int max;
 
             try {
-                max = Integer.parseInt(maxBurst.getText());
-
+                max = Integer.parseInt(maxBurst.getText().trim());
                 if (max < 1) {
                     throw new IllegalArgumentException();
                 }
-
             } catch (IllegalArgumentException ex) {
                 Util.error(this, "Largest Burst must be a positive number.");
                 return;
@@ -157,22 +179,7 @@ public class MultiprogrammingPanel extends ModulePanel {
             });
         });
 
-        // REMOVE JOB
-        remove.addActionListener(e -> {
-
-            Util.stopEditing(inputTable);
-
-            int[] rows = inputTable.getSelectedRows();
-
-            for (int i = rows.length - 1; i >= 0; i--) {
-                input.removeRow(inputTable.convertRowIndexToModel(rows[i]));
-            }
-
-            renumber();
-        });
-
         random.addActionListener(e -> randomizeData());
-
         run.addActionListener(e -> runSimulation());
 
         // DEFAULT DATA
@@ -181,8 +188,27 @@ public class MultiprogrammingPanel extends ModulePanel {
     }
 
     @Override
+    protected void paintComponent(Graphics g) {
+        Theme.paintBackground(g, this);
+    }
+
+    @Override
     public String getTitle() {
         return "Multiprogramming";
+    }
+
+    /** Cell editor that matches the theme (centered text, crimson outline while editing). */
+    private void installInputEditor() {
+        JTextField tf = new JTextField();
+        tf.setFont(Theme.body(15f));
+        tf.setHorizontalAlignment(SwingConstants.CENTER);
+        tf.setBackground(Theme.FIELD);
+        tf.setForeground(Theme.INK);
+        tf.setCaretColor(Theme.INK);
+        tf.setSelectionColor(Theme.GOLD);
+        tf.setSelectedTextColor(Theme.INK);
+        tf.setBorder(new LineBorder(Theme.CRIMSON, 2));
+        inputTable.setDefaultEditor(Object.class, new DefaultCellEditor(tf));
     }
 
     // RENUMBER JOBS
@@ -221,8 +247,8 @@ public class MultiprogrammingPanel extends ModulePanel {
 
         try {
 
-            int n = Integer.parseInt(jobCount.getText());
-            int max = Integer.parseInt(maxBurst.getText());
+            int n = Integer.parseInt(jobCount.getText().trim());
+            int max = Integer.parseInt(maxBurst.getText().trim());
 
             if (n < 1 || max < 1) {
                 throw new IllegalArgumentException(
@@ -230,6 +256,7 @@ public class MultiprogrammingPanel extends ModulePanel {
                 );
             }
 
+            Util.stopEditing(inputTable);
             input.setRowCount(0);
 
             Random rng = new Random();
@@ -500,16 +527,21 @@ public class MultiprogrammingPanel extends ModulePanel {
         timeline.setCaretPosition(0);
     }
 
-    // WRAPPING CELL RENDERER
+    // WRAPPING CELL RENDERER (themed: zebra rows, same colors as Theme.styleTable)
     private static class WrapRenderer extends JTextArea implements TableCellRenderer {
 
         private static final JTextArea MEASURE = new JTextArea();
 
-        WrapRenderer() {
+        private final Color rowA, rowB, fg;
+
+        WrapRenderer(boolean dark) {
+            rowA = dark ? new Color(0x16293F) : new Color(0xFBEBD2);
+            rowB = dark ? new Color(0x1C344F) : Theme.CREAM;
+            fg = dark ? Theme.CREAM : Theme.INK;
             setLineWrap(true);
             setWrapStyleWord(true);
             setOpaque(true);
-            setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
+            setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 6));
         }
 
         @Override
@@ -519,8 +551,8 @@ public class MultiprogrammingPanel extends ModulePanel {
 
             setFont(table.getFont());
             setText(value == null ? "" : value.toString());
-            setBackground(selected ? table.getSelectionBackground() : table.getBackground());
-            setForeground(selected ? table.getSelectionForeground() : table.getForeground());
+            setBackground(selected ? Theme.GOLD : (row % 2 == 0 ? rowA : rowB));
+            setForeground(selected ? Theme.INK : fg);
 
             int h = rowHeightFor(table, row);
 
@@ -539,7 +571,7 @@ public class MultiprogrammingPanel extends ModulePanel {
             MEASURE.setFont(table.getFont());
             MEASURE.setLineWrap(true);
             MEASURE.setWrapStyleWord(true);
-            MEASURE.setBorder(BorderFactory.createEmptyBorder(2, 2, 2, 2));
+            MEASURE.setBorder(BorderFactory.createEmptyBorder(4, 6, 4, 6));
 
             for (int c = 0; c < table.getColumnCount(); c++) {
 

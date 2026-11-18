@@ -12,9 +12,10 @@ import java.awt.*;
 import java.awt.event.MouseEvent;
 
 /**
- * Fragmentation: the user enters memory blocks and processes, picks a placement strategy (First / Best / Worst Fit)
- * and a memory type (fixed or dynamic partitions). The screen shows where every process went and measures
- * internal fragmentation (wasted space inside a block) and external fragmentation (free memory in unusable pieces).
+ * Fragmentation: the user enters memory blocks and processes, picks a placement strategy (First / Best / Worst Fit),
+ * a memory type (fixed or dynamic partitions) and a unit (KB, MB or GB). The screen shows where every process went
+ * and measures internal fragmentation (wasted space inside a block) and external fragmentation
+ * (free memory in unusable pieces).
  */
 public class FragmentationPanel extends ModulePanel {
     private static final int MAX_BLOCKS = 40, MAX_PROCESSES = 60, MAX_SIZE = 1_000_000;
@@ -27,7 +28,7 @@ public class FragmentationPanel extends ModulePanel {
             "Allocated, or why the process had to wait: External = enough memory in total but not in one piece; No memory = not enough free memory at all"};
     private static final String[] CMP_NAMES = {"Strategy", "Placed", "Internal", "External"};
     private static final String[] CMP_TIPS = {"Placement strategy", "How many processes found a place",
-            "Total internal fragmentation (KB)", "External fragmentation (KB): free memory that is too scattered to use"};
+            "Total internal fragmentation", "External fragmentation: free memory that is too scattered to use"};
 
     private final DefaultTableModel out = Util.readOnlyModel(OUT_NAMES), cmp = Util.readOnlyModel(CMP_NAMES);
     private final JTable outTable = tipTable(out, OUT_TIPS, true), cmpTable = tipTable(cmp, CMP_TIPS, true);
@@ -35,8 +36,11 @@ public class FragmentationPanel extends ModulePanel {
             blockCount = new Theme.RoundField("5", 4), procCount = new Theme.RoundField("4", 4), maxSize = new Theme.RoundField("600", 6);
     private final JComboBox<MemoryAllocator.Strategy> strategy = new JComboBox<>(MemoryAllocator.Strategy.values());
     private final JComboBox<String> memoryType = new JComboBox<>(new String[]{FIXED, DYNAMIC});
+    private final JComboBox<String> unitBox = new JComboBox<>(new String[]{"KB", "MB", "GB"});
+    private final JLabel blocksLabel = Theme.label("Memory blocks (KB, in order):", Theme.INK, 15f),
+            procsLabel = Theme.label("Processes (KB, in arrival order):", Theme.INK, 15f),
+            maxLabel = Theme.label("Largest size (KB):", Theme.INK, 15f);
     private final JLabel internalValue = bigValue(), externalValue = bigValue();
-    private final JTextArea details = new JTextArea();
     private final AllocationDiagram diagram = new AllocationDiagram();
 
     public FragmentationPanel() {
@@ -47,23 +51,26 @@ public class FragmentationPanel extends ModulePanel {
         JButton run = ModuleHeader.runButton("Run Simulation");
         Theme.styleCombo(strategy);
         Theme.styleCombo(memoryType);
+        Theme.styleCombo(unitBox);
         strategy.setPreferredSize(new Dimension(150, 34));
         memoryType.setPreferredSize(new Dimension(190, 34));
+        unitBox.setPreferredSize(new Dimension(80, 34));
         strategy.setToolTipText("How to choose between several blocks that are big enough");
         memoryType.setToolTipText("Fixed: one process per block, wasted space inside it. Dynamic: a block is split to fit the process.");
+        unitBox.setToolTipText("The unit the sizes are written in (KB, MB or GB)");
         JPanel tools = ModuleHeader.toolRow();
         tools.add(Theme.label("Strategy:", Theme.CREAM, 15f));
         tools.add(strategy);
         tools.add(Theme.label("Memory:", Theme.CREAM, 15f));
         tools.add(memoryType);
+        tools.add(Theme.label("Unit:", Theme.CREAM, 15f));
+        tools.add(unitBox);
         add(ModuleHeader.north("Fragmentation", "Place processes in memory and spot the wasted space!", "hourglass", tools, run), BorderLayout.NORTH);
 
         JPanel left = new LeftPanel();
         left.setLayout(new BoxLayout(left, BoxLayout.Y_AXIS));
         left.setOpaque(false);
         left.add(inputPanel());
-        left.add(Box.createVerticalStrut(2));
-        left.add(detailsPanel());
         left.add(Box.createVerticalStrut(2));
         left.add(comparePanel());
         JScrollPane leftScroll = new JScrollPane(left, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
@@ -76,7 +83,7 @@ public class FragmentationPanel extends ModulePanel {
         Theme.styleScroll(leftScroll);
         add(leftScroll, BorderLayout.WEST);
 
-        // right side: memory map, allocation table, explanation
+        // right side: memory map, allocation table
         Theme.SkinPanel mapPanel = new Theme.SkinPanel("Memory Map", "memory", false);
         JScrollPane mapScroll = Theme.scroll(diagram, Theme.DEEP);
         mapScroll.setPreferredSize(new Dimension(400, 230));
@@ -107,7 +114,7 @@ public class FragmentationPanel extends ModulePanel {
         add(center, BorderLayout.CENTER);
 
         run.addActionListener(e -> runSimulation());
-        loadSample();
+        unitBox.addActionListener(e -> applyUnit());
     }
 
     @Override protected void paintComponent(Graphics g) {
@@ -123,14 +130,28 @@ public class FragmentationPanel extends ModulePanel {
         public boolean getScrollableTracksViewportHeight() { return false; }
     }
 
+    // ---------------------------------------------------------------- units
+    private String unit() { return (String) unitBox.getSelectedItem(); }
+
+    /** The unit changed: relabel everything that shows a size and clear the old results (they were in the old unit). */
+    private void applyUnit() {
+        String u = unit();
+        blocksLabel.setText("Memory blocks (" + u + ", in order):");
+        procsLabel.setText("Processes (" + u + ", in arrival order):");
+        maxLabel.setText("Largest size (" + u + "):");
+        outTable.getColumnModel().getColumn(1).setHeaderValue("Size (" + u + ")");
+        outTable.getTableHeader().repaint();
+        clearResults();
+    }
+
     // ---------------------------------------------------------------- left column
     private JPanel inputPanel() {
         Theme.SkinPanel p = new Theme.SkinPanel("Blocks and Processes", "cards", false);
         p.body.setLayout(new GridBagLayout());
         GridBagConstraints c = gbc();
-        c.gridy = 0; c.gridx = 0; c.weightx = 0; p.body.add(Theme.label("Memory blocks (KB, in order):", Theme.INK, 15f), c);
+        c.gridy = 0; c.gridx = 0; c.weightx = 0; p.body.add(blocksLabel, c);
         c.gridy = 1; c.weightx = 1; p.body.add(blocks, c);
-        c.gridy = 2; c.weightx = 0; p.body.add(Theme.label("Processes (KB, in arrival order):", Theme.INK, 15f), c);
+        c.gridy = 2; c.weightx = 0; p.body.add(procsLabel, c);
         c.gridy = 3; c.weightx = 1; p.body.add(procs, c);
         blocks.setToolTipText("Sizes separated by spaces or commas, e.g.  100 500 200 300 600");
         procs.setToolTipText("Sizes separated by spaces or commas, e.g.  212 417 112 426");
@@ -139,32 +160,16 @@ public class FragmentationPanel extends ModulePanel {
         counts.setOpaque(false);
         counts.add(Theme.label("How many blocks:", Theme.INK, 15f)); counts.add(blockCount);
         counts.add(Theme.label("How many processes:", Theme.INK, 15f)); counts.add(procCount);
-        counts.add(Theme.label("Largest size (KB):", Theme.INK, 15f)); counts.add(maxSize);
+        counts.add(maxLabel); counts.add(maxSize);
         c.gridy = 4; c.insets = new Insets(10, 4, 3, 4); p.body.add(counts, c);
+        blockCount.setToolTipText("Randomize picks these three values itself and fills them in");
+        procCount.setToolTipText("Randomize picks these three values itself and fills them in");
+        maxSize.setToolTipText("Randomize picks these three values itself and fills them in");
 
-        JButton rnd = ModuleHeader.navyButton("Randomize", 150), sample = ModuleHeader.navyButton("Load Sample", 150);
-        JPanel two = new JPanel(new GridLayout(1, 2, 6, 0));
-        two.setOpaque(false);
-        two.add(rnd); two.add(sample);
-        c.gridy = 5; c.insets = new Insets(6, 4, 3, 4); p.body.add(two, c);
+        JButton rnd = ModuleHeader.navyButton("Randomize", 150);
+        rnd.setToolTipText("Random number of blocks and processes, random largest size, random block and process sizes");
+        c.gridy = 5; c.insets = new Insets(6, 4, 3, 4); p.body.add(rnd, c);
         rnd.addActionListener(e -> randomizeData());
-        sample.addActionListener(e -> loadSample());
-        return p;
-    }
-
-    private JPanel detailsPanel() {
-        Theme.SkinPanel p = new Theme.SkinPanel("What Happened", "gear", false);
-        details.setEditable(false);
-        details.setLineWrap(true);
-        details.setWrapStyleWord(true);
-        details.setFont(Theme.body(14f));
-        details.setBackground(Theme.DEEP);
-        details.setForeground(Theme.CREAM);
-        details.setCaretColor(Theme.CREAM);
-        details.setMargin(new Insets(8, 10, 8, 10));
-        JScrollPane sp = Theme.scroll(details, Theme.DEEP);
-        sp.setPreferredSize(new Dimension(200, 200));
-        p.body.add(sp, BorderLayout.CENTER);
         return p;
     }
 
@@ -195,34 +200,23 @@ public class FragmentationPanel extends ModulePanel {
     // ---------------------------------------------------------------- behaviour
     @Override public String getTitle() { return "Fragmentation"; }
 
-    /** The classic textbook example. */
-    private void loadSample() {
-        blocks.setText("100 500 200 300 600");
-        procs.setText("212 417 112 426");
-        blockCount.setText("5");
-        procCount.setText("4");
-        maxSize.setText("600");
-        clearResults();
-    }
-
+    /** Randomizes everything: number of blocks, number of processes, largest size, and every block and process size. */
     @Override protected void randomizeData() {
-        try {
-            int nb = Util.parseInt(blockCount.getText(), "How many blocks", 1), np = Util.parseInt(procCount.getText(), "How many processes", 1);
-            int max = Util.parseInt(maxSize.getText(), "Largest size", 10);
-            if (nb > MAX_BLOCKS) throw new IllegalArgumentException("How many blocks must be at most " + MAX_BLOCKS + ".");
-            if (np > MAX_PROCESSES) throw new IllegalArgumentException("How many processes must be at most " + MAX_PROCESSES + ".");
-            if (max > MAX_SIZE) throw new IllegalArgumentException("Largest size must be at most " + MAX_SIZE + ".");
-            int lo = Math.max(1, max / 10);
-            StringBuilder b = new StringBuilder(), p = new StringBuilder();
-            for (int i = 0; i < nb; i++) b.append(lo + Util.RNG.nextInt(max - lo + 1)).append(' ');
-            int pmax = Math.max(lo, max * 3 / 4);                 // processes are a bit smaller, so most (not all) fit
-            for (int i = 0; i < np; i++) p.append(lo + Util.RNG.nextInt(pmax - lo + 1)).append(' ');
-            blocks.setText(b.toString().trim());
-            procs.setText(p.toString().trim());
-            clearResults();
-        } catch (IllegalArgumentException ex) {
-            Util.error(this, ex.getMessage());
-        }
+        int nb = 3 + Util.RNG.nextInt(6);                      // 3 .. 8 blocks
+        int np = 3 + Util.RNG.nextInt(6);                      // 3 .. 8 processes
+        int max = 100 * (2 + Util.RNG.nextInt(19));            // 200 .. 2000
+        blockCount.setText(String.valueOf(nb));
+        procCount.setText(String.valueOf(np));
+        maxSize.setText(String.valueOf(max));
+
+        int lo = Math.max(1, max / 10);
+        StringBuilder b = new StringBuilder(), p = new StringBuilder();
+        for (int i = 0; i < nb; i++) b.append(lo + Util.RNG.nextInt(max - lo + 1)).append(' ');
+        int pmax = Math.max(lo, max * 3 / 4);                  // processes are a bit smaller, so most (not all) fit
+        for (int i = 0; i < np; i++) p.append(lo + Util.RNG.nextInt(pmax - lo + 1)).append(' ');
+        blocks.setText(b.toString().trim());
+        procs.setText(p.toString().trim());
+        clearResults();
     }
 
     @Override protected void runSimulation() {
@@ -233,21 +227,14 @@ public class FragmentationPanel extends ModulePanel {
             MemoryAllocator.Result r = MemoryAllocator.run(b, p, s, fixed);
 
             out.setRowCount(0);
-            StringBuilder log = new StringBuilder(summaryLine(r) + "\n\n" + s + ": " + s.description() + "\n"
-                    + (fixed ? "Fixed partitions: every block holds at most one process.\n\n"
-                    : "Dynamic partitions: a block is split, the process takes only what it needs.\n\n"));
             for (MemoryAllocator.Placement pl : r.placements) {
                 String status = pl.allocated() ? "Allocated" : pl.external ? "External" : "No memory";
                 out.addRow(new Object[]{"P" + (pl.process + 1), String.valueOf(pl.size), pl.allocated() ? String.valueOf(pl.block + 1) : "-",
                         fixed && pl.allocated() ? String.valueOf(pl.internal) : "-", status});
-                log.append("P").append(pl.process + 1).append(" (").append(pl.size).append(" KB): ")
-                        .append(pl.allocated() ? "placed in " + pl.note : pl.note).append(".\n");
             }
-            details.setText(log.toString());
-            details.setCaretPosition(0);
             diagram.show(r, p);
-            internalValue.setText(r.internalFragmentation + " KB");
-            externalValue.setText(r.externalFragmentation + " KB");
+            internalValue.setText(r.internalFragmentation + " " + unit());
+            externalValue.setText(r.externalFragmentation + " " + unit());
         } catch (IllegalArgumentException ex) {
             Util.error(this, ex.getMessage());
         }
@@ -261,27 +248,15 @@ public class FragmentationPanel extends ModulePanel {
             for (MemoryAllocator.Strategy s : MemoryAllocator.Strategy.values()) {
                 MemoryAllocator.Result r = MemoryAllocator.run(b, p, s, fixed);
                 cmp.addRow(new Object[]{s.toString(), (p.length - r.waiting) + " of " + p.length,
-                        r.internalFragmentation + " KB", r.externalFragmentation + " KB"});
+                        r.internalFragmentation + " " + unit(), r.externalFragmentation + " " + unit()});
             }
         } catch (IllegalArgumentException ex) {
             Util.error(this, ex.getMessage());
         }
     }
 
-    private static String summaryLine(MemoryAllocator.Result r) {
-        StringBuilder s = new StringBuilder((r.placements.size() - r.waiting) + " of " + r.placements.size() + " processes placed. ");
-        if (r.fixed) s.append(r.internalFragmentation > 0 ? "Internal fragmentation: " + r.internalFragmentation + " KB wasted inside blocks. "
-                : "No internal fragmentation. ");
-        else s.append("Dynamic partitions split blocks, so there is no internal fragmentation. ");
-        if (r.externalFragmentation > 0)
-            s.append("External fragmentation: " + r.freeMemory + " KB is free, but the biggest piece is " + r.largestFree + " KB.");
-        else if (r.waiting > 0) s.append("The waiting processes need more memory than is free: that is not fragmentation.");
-        else s.append("No external fragmentation: everything was placed.");
-        return s.toString();
-    }
-
     /** "100 500, 200" -> [100, 500, 200] with friendly errors. */
-    private static int[] parseSizes(String text, String what, int max) {
+    private int[] parseSizes(String text, String what, int max) {
         String s = text == null ? "" : text.trim();
         if (s.isEmpty()) throw new IllegalArgumentException("Type at least one " + what.toLowerCase() + " size.");
         String[] tok = s.split("[\\s,;]+");
@@ -289,7 +264,7 @@ public class FragmentationPanel extends ModulePanel {
         int[] v = new int[tok.length];
         for (int i = 0; i < tok.length; i++) {
             v[i] = Util.parseInt(tok[i], what + " " + (i + 1), 1);
-            if (v[i] > MAX_SIZE) throw new IllegalArgumentException(what + " " + (i + 1) + " is too large (at most " + MAX_SIZE + " KB).");
+            if (v[i] > MAX_SIZE) throw new IllegalArgumentException(what + " " + (i + 1) + " is too large (at most " + MAX_SIZE + " " + unit() + ").");
         }
         return v;
     }
@@ -297,7 +272,6 @@ public class FragmentationPanel extends ModulePanel {
     private void clearResults() {
         out.setRowCount(0);
         cmp.setRowCount(0);
-        details.setText("");
         internalValue.setText("-");
         externalValue.setText("-");
         diagram.clear();

@@ -18,15 +18,20 @@ import java.util.List;
 public class CpuPanel extends ModulePanel {
     private static final int MAX_SCALE = 6;
     private static final int MAX_SLICES = 200_000;
+    private static final int MAX_JOBS = 200;
 
-    private static final String[] IN_NAMES = {"Job", "Arrival (AT)", "Burst (BT)"};
+    private static final String[] IN_NAMES = {"Job", "Arrival (AT)", "Burst (BT)", "Priority"};
     private static final String[] IN_TIPS = {"Job number", "Arrival time (AT): when the job arrives and is ready to run",
-            "Burst time (BT): how long the job needs the CPU in total"};
+            "Burst time (BT): how long the job needs the CPU in total",
+            "Priority (used by Priority scheduling only): a LOWER number runs first"};
     private static final String[] OUT_NAMES = {"Job", "Arrival", "Burst", "Start", "Finish", "Waiting", "Turnaround"};
     private static final String[] OUT_TIPS = {"Job number", "Arrival time (AT): when the job arrived",
             "Burst time (BT): total CPU time the job needs", "Start time (ST): when the job first got the CPU",
             "Finish time (FT): when the job completed", "Waiting time (WT) = Turnaround - Burst: time spent waiting in the queue",
             "Turnaround time (TAT) = Finish - Arrival: total time from arrival to completion"};
+
+    /** The "Priority" entry of the Algorithm drop-down (it is run by PriorityRunner, not by a Scheduler). */
+    private static final Object PRIORITY = new Object() { @Override public String toString() { return "Priority"; } };
 
     private final DefaultTableModel in = new DefaultTableModel(IN_NAMES, 0) {
         public boolean isCellEditable(int r, int c) { return c > 0; }
@@ -35,7 +40,7 @@ public class CpuPanel extends ModulePanel {
     private final JTable inTable = tipTable(in, IN_TIPS, false), outTable = tipTable(out, OUT_TIPS, true);
     private final Scheduler fcfs = new FCFSScheduler(), sjf = new SJFScheduler(), srt = new SRTScheduler(),
             rr = new RoundRobinScheduler(2);
-    private final JComboBox<Scheduler> algo = new JComboBox<>(new Scheduler[]{fcfs, sjf, srt, rr});
+    private final JComboBox<Object> algo = new JComboBox<>(new Object[]{fcfs, sjf, srt, rr, PRIORITY});
     private final JComboBox<String> mode = new JComboBox<>(new String[]{"Non-preemptive", "Preemptive"});
     private final JLabel quantumLabel = Theme.label("Time quantum:", Theme.CREAM, 15f);
     private final JTextField quantum = new Theme.RoundField("2", 5), size = new Theme.RoundField("5", 4), maxValue = new Theme.RoundField("10", 6);
@@ -52,9 +57,7 @@ public class CpuPanel extends ModulePanel {
         setOpaque(false);
         setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
 
-        JButton run = new Theme.SkinButton("Run Simulation", "red");
-        run.setIcon(Theme.playIcon(12, Theme.CREAM));
-        run.setFont(Theme.body(17f).deriveFont(Font.BOLD));
+        JButton run = ModuleHeader.runButton("Run Simulation");
         run.setPreferredSize(new Dimension(210, 44));
         add(northPanel(run), BorderLayout.NORTH);
 
@@ -139,27 +142,7 @@ public class CpuPanel extends ModulePanel {
 
     // ---------------------------------------------------------------- top area
     private JPanel northPanel(JButton run) {
-        // title banner (cream card with spade)
-        Theme.SkinPanel banner = new Theme.SkinPanel(null, null, false);
-        banner.body.setLayout(new BorderLayout(12, 0));
-        banner.body.add(new JLabel(Theme.icon("spade", 30, Theme.INK)), BorderLayout.WEST);
-        JPanel titles = new JPanel();
-        titles.setOpaque(false);
-        titles.setLayout(new BoxLayout(titles, BoxLayout.Y_AXIS));
-        JLabel title = new JLabel("CPU Scheduling");
-        title.setFont(Theme.heading(28f));
-        title.setForeground(Theme.INK);
-        JLabel sub = Theme.label("Choose an algorithm and run the simulation!", Theme.MUTED, 14f);
-        titles.add(title);
-        titles.add(sub);
-        banner.body.add(titles, BorderLayout.CENTER);
-        banner.setBorder(BorderFactory.createEmptyBorder(8, 14, 16, 18));
-        banner.setPreferredSize(new Dimension(400, 86));
-        banner.setMinimumSize(new Dimension(200, 86));
-
-        // toolbar: algorithm, mode, quantum, Run
-        JPanel tools = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 4));
-        tools.setOpaque(false);
+        JPanel tools = ModuleHeader.toolRow();
         tools.add(Theme.label("Algorithm:", Theme.CREAM, 15f));
         algo.setPreferredSize(new Dimension(160, 34));
         tools.add(algo);
@@ -169,19 +152,7 @@ public class CpuPanel extends ModulePanel {
         tools.add(quantumLabel);
         tools.add(quantum);
         quantum.setToolTipText("Round Robin only: the longest a job may run before the next job gets a turn");
-        JPanel bar = new JPanel(new BorderLayout());
-        bar.setOpaque(false);
-        bar.add(tools, BorderLayout.CENTER);
-        bar.add(run, BorderLayout.EAST);
-
-        JPanel north = new JPanel();
-        north.setOpaque(false);
-        north.setLayout(new BoxLayout(north, BoxLayout.Y_AXIS));
-        for (JComponent c : new JComponent[]{banner, bar}) {
-            c.setAlignmentX(Component.LEFT_ALIGNMENT);
-            north.add(c);
-        }
-        return north;
+        return ModuleHeader.north("CPU Scheduling", "Choose an algorithm and run the simulation!", "spade", tools, run);
     }
 
     // ---------------------------------------------------------------- left column
@@ -193,40 +164,56 @@ public class CpuPanel extends ModulePanel {
         p.body.add(sp, BorderLayout.CENTER);
         p.body.setToolTipText("Double-click a cell to edit");
 
-        JButton add = ModuleHeader.navyButton("Add row", 100), del = ModuleHeader.dangerButton("Remove", 100),
-                clr = ModuleHeader.dangerButton("Clear all", 100);
+        JButton add = ModuleHeader.withIcon(ModuleHeader.navyButton("Add row", 110), "plus", Theme.CREAM);
+        JButton del = ModuleHeader.withIcon(ModuleHeader.dangerButton("Remove", 110), "minus", Theme.CRIMSON);
+        JButton clr = ModuleHeader.withIcon(ModuleHeader.dangerButton("Clear all", 110), "trash", Theme.CRIMSON);
+
+        Runnable doRemove = () -> {
+            Util.stopEditing(inTable);
+            int[] rows = inTable.getSelectedRows();
+            for (int i = rows.length - 1; i >= 0; i--) in.removeRow(inTable.convertRowIndexToModel(rows[i]));
+            renumber();
+        };
         Runnable doClear = () -> { Util.stopEditing(inTable); in.setRowCount(0); clearResults(); };
-        p.body.add(ModuleHeader.tableButtons(add, del, clr, inTable, in, doClear, this), BorderLayout.SOUTH);
+        JPanel tableButtons = ModuleHeader.tableButtons(add, del, clr, inTable, in, doRemove, doClear, this);
+
+        // "How many jobs" + Randomize sit right under the table: type a number, click Randomize
+        JButton rnd = ModuleHeader.withIcon(ModuleHeader.navyButton("Randomize", 140), "dice", Theme.CREAM);
+        rnd.setToolTipText("Replace the table with this many random jobs");
+        size.setToolTipText("How many random jobs to create (1 to " + MAX_JOBS + ")");
+        JPanel randomRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        randomRow.setOpaque(false);
+        randomRow.add(Theme.label("How many jobs:", Theme.INK, 15f));
+        randomRow.add(size);
+        randomRow.add(rnd);
+
+        JPanel south = new JPanel();
+        south.setOpaque(false);
+        south.setLayout(new BoxLayout(south, BoxLayout.Y_AXIS));
+        tableButtons.setAlignmentX(Component.LEFT_ALIGNMENT);
+        randomRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+        south.add(tableButtons);
+        south.add(Box.createVerticalStrut(8));
+        south.add(randomRow);
+        p.body.add(south, BorderLayout.SOUTH);
 
         add.addActionListener(e -> {
             try { Util.stopEditing(inTable); in.addRow(randomRow()); renumber(); }
             catch (IllegalArgumentException ex) { Util.error(this, ex.getMessage()); }
         });
-        del.addActionListener(e -> {
-            Util.stopEditing(inTable);
-            int[] rows = inTable.getSelectedRows();
-            for (int i = rows.length - 1; i >= 0; i--) in.removeRow(rows[i]);
-            renumber();
-        });
+        rnd.addActionListener(e -> randomizeData());
         return p;
     }
 
     private JPanel randomPanel() {
-        Theme.SkinPanel p = new Theme.SkinPanel("Generate Random Jobs", "club", false);
+        Theme.SkinPanel p = new Theme.SkinPanel("Random Job Settings", "club", false);
         p.body.setLayout(new GridBagLayout());
         GridBagConstraints c = gbc();
-        c.gridy = 0; c.gridx = 0; c.weightx = 0; p.body.add(Theme.label("How many jobs:", Theme.INK, 15f), c);
-        c.gridy = 1; c.weightx = 1; p.body.add(size, c);
-        c.gridy = 2; c.weightx = 0; p.body.add(Theme.label("Largest value:", Theme.INK, 15f), c);
-        c.gridy = 3; c.weightx = 1; p.body.add(maxValue, c);
-        c.gridy = 4; p.body.add(decimalValues, c);
-        JButton rnd = new Theme.SkinButton("Randomize", "navy");
-        rnd.setPreferredSize(new Dimension(150, 40));
-        c.gridy = 5; c.insets = new Insets(6, 4, 3, 4); c.fill = GridBagConstraints.NONE; c.anchor = GridBagConstraints.CENTER;
-        p.body.add(rnd, c);
+        c.gridy = 0; c.gridx = 0; c.weightx = 0; p.body.add(Theme.label("Largest value:", Theme.INK, 15f), c);
+        c.gridy = 1; c.weightx = 1; p.body.add(maxValue, c);
+        c.gridy = 2; p.body.add(decimalValues, c);
         maxValue.setToolTipText("Largest number the randomizer uses for a time, e.g. 10 or 1000000");
         decimalValues.setToolTipText("Make the random times decimal numbers such as 3.7");
-        rnd.addActionListener(e -> randomizeData());
         return p;
     }
 
@@ -301,21 +288,27 @@ public class CpuPanel extends ModulePanel {
 
     @Override public String getTitle() { return "CPU Scheduling"; }
 
-    private boolean adjustingMode;
+    private boolean isPriority() { return algo.getSelectedItem() == PRIORITY; }
 
     private void updateControls() {
-        Scheduler s = (Scheduler) algo.getSelectedItem();
-        adjustingMode = true;
+        Object sel = algo.getSelectedItem();
+        if (sel == PRIORITY) {
+            mode.setEnabled(true);                        // Priority can run either way
+            algo.setToolTipText("Priority: the job with the LOWEST priority number runs first. Edit the Priority column.");
+            quantumLabel.setVisible(false);
+            quantum.setVisible(false);
+            return;
+        }
+        Scheduler s = (Scheduler) sel;
         mode.setSelectedItem(s.isPreemptive() ? "Preemptive" : "Non-preemptive");
-        adjustingMode = false;
-        mode.setEnabled(s == sjf || s == srt);   // only SJF and SRT can run either way
+        mode.setEnabled(s == sjf || s == srt);            // only SJF and SRT can run either way
         algo.setToolTipText(s.getDescription());
         boolean isRR = s instanceof RoundRobinScheduler;
         quantumLabel.setVisible(isRR);
         quantum.setVisible(isRR);
     }
 
-    /** The scheduler to run: SJF + Preemptive is SRT, and SRT + Non-preemptive is SJF. */
+    /** The scheduler to run: SJF + Preemptive is SRT, and SRT + Non-preemptive is SJF. (Not used for Priority.) */
     private Scheduler chosenScheduler() {
         Scheduler s = (Scheduler) algo.getSelectedItem();
         boolean pre = "Preemptive".equals(mode.getSelectedItem());
@@ -326,13 +319,13 @@ public class CpuPanel extends ModulePanel {
 
     private void updateHeaders() {
         String u = " (" + TimeFmt.ABBR[inUnit.getSelectedIndex()] + ")";
-        in.setColumnIdentifiers(new String[]{IN_NAMES[0], IN_NAMES[1] + u, IN_NAMES[2] + u});
+        in.setColumnIdentifiers(new String[]{IN_NAMES[0], IN_NAMES[1] + u, IN_NAMES[2] + u, IN_NAMES[3]});
         inTable.getColumnModel().getColumn(0).setPreferredWidth(40);
     }
 
     private void loadExample() {
-        String[][] d = {{"0", "8"}, {"1", "4"}, {"2", "9"}, {"3", "5"}};
-        for (String[] r : d) in.addRow(new Object[]{"", r[0], r[1]});
+        String[][] d = {{"0", "8", "3"}, {"1", "4", "1"}, {"2", "9", "4"}, {"3", "5", "2"}};
+        for (String[] r : d) in.addRow(new Object[]{"", r[0], r[1], r[2]});
         renumber();
     }
 
@@ -367,7 +360,7 @@ public class CpuPanel extends ModulePanel {
             at = "" + (long) (Util.RNG.nextDouble() * (arrMax + 1));
             bt = "" + (1 + (long) (Util.RNG.nextDouble() * max));
         }
-        return new Object[]{"", at, bt};
+        return new Object[]{"", at, bt, String.valueOf(1 + Util.RNG.nextInt(5))};
     }
 
     private void renumber() { for (int i = 0; i < in.getRowCount(); i++) in.setValueAt("J" + (i + 1), i, 0); }
@@ -375,13 +368,15 @@ public class CpuPanel extends ModulePanel {
     @Override
     protected void randomizeData() {
         try {
-            int n = Util.parseInt(size.getText(), "Size", 1);
+            int n = Util.parseInt(size.getText(), "How many jobs", 1);
+            if (n > MAX_JOBS) throw new IllegalArgumentException("How many jobs must be at most " + MAX_JOBS + ".");
             Util.stopEditing(inTable);
             List<Object[]> rows = new ArrayList<>();
             for (int i = 0; i < n; i++) rows.add(randomRow());
             in.setRowCount(0);
             for (Object[] r : rows) in.addRow(r);
             renumber();
+            clearResults();
         } catch (IllegalArgumentException ex) { Util.error(this, ex.getMessage()); }
     }
 
@@ -390,8 +385,12 @@ public class CpuPanel extends ModulePanel {
         Util.stopEditing(inTable);
         int n = in.getRowCount();
         if (n == 0) { Util.error(this, "Add at least one job (or use Randomize)."); return; }
-        Scheduler scheduler = chosenScheduler();
+        final boolean prio = isPriority();
+        final boolean pre = "Preemptive".equals(mode.getSelectedItem());
+        Scheduler scheduler = prio ? null : chosenScheduler();
         List<PCB> procs = new ArrayList<>();
+        long[] a = new long[n], b = new long[n];
+        int[] pr = new int[n];
         int scale;
         TimeFmt fmt;
         try {
@@ -405,6 +404,10 @@ public class CpuPanel extends ModulePanel {
                 if (at[i].signum() < 0) throw new IllegalArgumentException("Arrival time (AT)" + row + " cannot be negative.");
                 if (bt[i].signum() <= 0) throw new IllegalArgumentException("Burst time (BT)" + row + " must be greater than 0.");
                 scale = Math.max(scale, decimalsOf(at[i])); scale = Math.max(scale, decimalsOf(bt[i]));
+                if (prio) {
+                    try { pr[i] = Integer.parseInt(Util.str(in.getValueAt(i, 3)).trim()); }
+                    catch (NumberFormatException ex) { throw new IllegalArgumentException("Priority" + row + " must be a whole number."); }
+                }
             }
             if (scheduler instanceof RoundRobinScheduler) {
                 q = Util.parseDecimal(quantum.getText(), "Time quantum");
@@ -415,7 +418,6 @@ public class CpuPanel extends ModulePanel {
                 throw new IllegalArgumentException("Use at most " + MAX_SCALE + " decimal places in the times.");
 
             BigInteger sum = BigInteger.ZERO, maxAt = BigInteger.ZERO;
-            long[] a = new long[n], b = new long[n];
             for (int i = 0; i < n; i++) {
                 BigInteger ai = fixed(at[i], scale), bi = fixed(bt[i], scale);
                 sum = sum.add(bi); maxAt = maxAt.max(ai);
@@ -438,7 +440,24 @@ public class CpuPanel extends ModulePanel {
             fmt = new TimeFmt(scale, inUnit.getSelectedIndex(), outUnit.getSelectedIndex(), decimals);
         } catch (IllegalArgumentException ex) { Util.error(this, ex.getMessage()); return; }
 
-        List<Segment> timeline = scheduler.schedule(procs);   // polymorphic call
+        // run the chosen algorithm and collect the per-job times
+        long[] st = new long[n], fin = new long[n];
+        List<Segment> timeline = new ArrayList<>();
+        String algoName;
+        boolean preemptive;
+        if (prio) {
+            PriorityRunner.Result r = PriorityRunner.run(a, b, pr, pre);
+            for (long[] s : r.segments) timeline.add(new Segment(s[0] < 0 ? null : procs.get((int) s[0]), s[1], s[2]));
+            st = r.start;
+            fin = r.finish;
+            algoName = "Priority";
+            preemptive = pre;
+        } else {
+            timeline = scheduler.schedule(procs);               // polymorphic call
+            for (int i = 0; i < n; i++) { st[i] = procs.get(i).getStart(); fin[i] = procs.get(i).getCompletion(); }
+            algoName = scheduler.getName();
+            preemptive = scheduler.isPreemptive();
+        }
 
         String u = " (" + TimeFmt.outLabel(outUnit.getSelectedIndex()) + ")";
         String[] names = new String[OUT_NAMES.length];
@@ -446,17 +465,18 @@ public class CpuPanel extends ModulePanel {
         out.setColumnIdentifiers(names);
         out.setRowCount(0);
         BigInteger sumT = BigInteger.ZERO, sumW = BigInteger.ZERO;
-        for (PCB p : procs) {
-            sumT = sumT.add(BigInteger.valueOf(p.getTurnaround()));
-            sumW = sumW.add(BigInteger.valueOf(p.getWaiting()));
-            out.addRow(new Object[]{p.getLabel(), fmt.format(p.getArrival()), fmt.format(p.getBurst()), fmt.format(p.getStart()),
-                    fmt.format(p.getCompletion()), fmt.format(p.getWaiting()), fmt.format(p.getTurnaround())});
+        for (int i = 0; i < n; i++) {
+            long tat = fin[i] - a[i], wt = tat - b[i];
+            sumT = sumT.add(BigInteger.valueOf(tat));
+            sumW = sumW.add(BigInteger.valueOf(wt));
+            out.addRow(new Object[]{procs.get(i).getLabel(), fmt.format(a[i]), fmt.format(b[i]), fmt.format(st[i]),
+                    fmt.format(fin[i]), fmt.format(wt), fmt.format(tat)});
         }
         String inU = TimeFmt.ABBR[inUnit.getSelectedIndex()];
         awtValue.setText(fmt.average(sumW, n));
         atatValue.setText(fmt.average(sumT, n));
         note.setText("In the unit you entered: AWT = " + fmt.averageInput(sumW, n) + " " + inU + ",  ATAT = " + fmt.averageInput(sumT, n) + " " + inU);
-        resultsPanel.setTitle("Results: " + scheduler.getName() + " (" + (scheduler.isPreemptive() ? "preemptive" : "non-preemptive") + ")");
+        resultsPanel.setTitle("Results: " + algoName + " (" + (preemptive ? "preemptive" : "non-preemptive") + ")");
         gantt.play(timeline, fmt, scale);
     }
 

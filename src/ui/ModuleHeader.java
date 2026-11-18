@@ -29,10 +29,17 @@ public final class ModuleHeader {
         banner.setPreferredSize(new Dimension(400, 86));
         banner.setMinimumSize(new Dimension(200, 86));
 
+        // Wrap the Run button so it keeps its own size instead of stretching to the height of the tool bar.
+        JPanel runWrap = new JPanel(new GridBagLayout());
+        runWrap.setOpaque(false);
+        GridBagConstraints rc = new GridBagConstraints();
+        rc.anchor = GridBagConstraints.NORTH;
+        runWrap.add(run, rc);
+
         JPanel bar = new JPanel(new BorderLayout());
         bar.setOpaque(false);
         bar.add(tools, BorderLayout.CENTER);
-        bar.add(run, BorderLayout.EAST);
+        bar.add(runWrap, BorderLayout.EAST);
 
         JPanel north = new JPanel();
         north.setOpaque(false);
@@ -76,13 +83,21 @@ public final class ModuleHeader {
         return b;
     }
 
+    /** Shortcut for {@link Icons#on}: puts a code-drawn icon ("plus", "minus", "trash", "dice", "sheet") on a button. */
+    public static JButton withIcon(JButton b, String kind, Color color) {
+        return Icons.on(b, kind, color);
+    }
+
     /**
      * The Add / Remove / Clear row used under every editable table: Add (safe, navy) on the left,
      * then a gap, then the two destructive buttons. Remove is only enabled when a row is selected,
-     * Clear all only when the table has rows, and Clear all asks before it deletes.
+     * Clear all only when the table has rows. BOTH Remove and Clear all ask before they delete.
+     *
+     * @param doRemove deletes the selected rows (run only after the person clicks Yes)
+     * @param doClear  deletes every row (run only after the person clicks Yes)
      */
     public static JPanel tableButtons(JButton add, JButton del, JButton clr, JTable table, javax.swing.table.DefaultTableModel model,
-                                      Runnable doClear, Component parent) {
+                                      Runnable doRemove, Runnable doClear, Component parent) {
         add.setToolTipText("Add a new row");
         del.setToolTipText("Remove the selected row(s)");
         clr.setToolTipText("Delete every row");
@@ -93,6 +108,16 @@ public final class ModuleHeader {
         table.getSelectionModel().addListSelectionListener(e -> refresh.run());
         model.addTableModelListener(e -> refresh.run());
         refresh.run();
+
+        for (ActionListener l : del.getActionListeners()) del.removeActionListener(l);
+        del.addActionListener(e -> {
+            int n = table.getSelectedRowCount();
+            if (n == 0) return;
+            int ok = JOptionPane.showConfirmDialog(parent,
+                    "Remove " + (n == 1 ? "the selected row" : "the " + n + " selected rows") + "? This cannot be undone.",
+                    "Remove", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+            if (ok == JOptionPane.YES_OPTION) doRemove.run();
+        });
 
         for (ActionListener l : clr.getActionListeners()) clr.removeActionListener(l);
         clr.addActionListener(e -> {
@@ -109,6 +134,15 @@ public final class ModuleHeader {
         c.gridx = 0; c.insets = new Insets(0, 0, 0, 0); p.add(add, c);
         c.gridx = 1; c.insets = new Insets(0, 18, 0, 0); p.add(del, c);     // wider gap = separates safe from destructive
         c.gridx = 2; c.insets = new Insets(0, 6, 0, 0); p.add(clr, c);
+        return p;
+    }
+
+    /** Older form (Clear all asks, Remove does not). Kept so panels not updated yet still compile. */
+    public static JPanel tableButtons(JButton add, JButton del, JButton clr, JTable table, javax.swing.table.DefaultTableModel model,
+                                      Runnable doClear, Component parent) {
+        JPanel p = tableButtons(add, del, clr, table, model, () -> { }, doClear, parent);
+        // restore the caller's own Remove listener behaviour: this form must not touch Remove
+        for (ActionListener l : del.getActionListeners()) del.removeActionListener(l);
         return p;
     }
 }

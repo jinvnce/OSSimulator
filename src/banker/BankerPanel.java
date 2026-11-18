@@ -67,7 +67,7 @@ public class BankerPanel extends ModulePanel {
 
         // toolbar
         JButton gen = new Theme.SkinButton("Generate Tables", "navy"), rnd = new Theme.SkinButton("Randomize", "navy"),
-                chk = new Theme.SkinButton("Check Safety", "red");
+                chk = new Theme.SkinButton("Run Simulation", "red");
         gen.setPreferredSize(new Dimension(160, 40));
         rnd.setPreferredSize(new Dimension(130, 40));
         chk.setIcon(Theme.playIcon(12, Theme.CREAM));

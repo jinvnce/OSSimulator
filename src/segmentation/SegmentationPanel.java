@@ -42,7 +42,6 @@ public class SegmentationPanel extends ModulePanel {
     private final JTextField addresses = new Theme.RoundField("", 30);
     private final JTextField memSize = new Theme.RoundField("8192", 8), count = new Theme.RoundField("5", 4),
             maxLimit = new Theme.RoundField("1000", 6);
-    private final JTextArea steps = new JTextArea();
     private final JLabel note = Theme.label(" ", Theme.CREAM_SHADOW, 14f);
     private final SegmentDiagram diagram = new SegmentDiagram();
 
@@ -59,32 +58,22 @@ public class SegmentationPanel extends ModulePanel {
         add(ModuleHeader.north("Segmentation", "Translate segment:offset addresses and catch the ones that are out of range!",
                 "cards", tools, run), BorderLayout.NORTH);
 
-        JPanel left = new LeftPanel();
-        left.setLayout(new BoxLayout(left, BoxLayout.Y_AXIS));
+        // left column: segment table fills the space, memory settings sit underneath
+        JPanel left = new JPanel(new BorderLayout(0, 8));
         left.setOpaque(false);
-        left.add(segmentsPanel());
-        left.add(Box.createVerticalStrut(2));
-        left.add(stepsPanel());
-        left.add(Box.createVerticalStrut(2));
-        left.add(memoryPanel());
-        JScrollPane leftScroll = new JScrollPane(left, ScrollPaneConstants.VERTICAL_SCROLLBAR_AS_NEEDED,
-                ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
-        leftScroll.setBorder(BorderFactory.createEmptyBorder());
-        leftScroll.setOpaque(false);
-        leftScroll.getViewport().setOpaque(false);
-        leftScroll.getVerticalScrollBar().setUnitIncrement(16);
-        leftScroll.setPreferredSize(new Dimension(400, 100));
-        Theme.styleScroll(leftScroll);
-        add(leftScroll, BorderLayout.WEST);
+        left.setPreferredSize(new Dimension(400, 100));
+        left.add(segmentsPanel(), BorderLayout.CENTER);
+        left.add(memoryPanel(), BorderLayout.SOUTH);
+        add(left, BorderLayout.WEST);
 
-        // right side: memory map, results, calculation steps
-        Theme.SkinPanel mapPanel = new Theme.SkinPanel("Physical Memory Map", "memory", false);
+        // right side: memory map + results
+        Theme.SkinPanel mapPanel = new Theme.SkinPanel("Physical Memory Map", null, true);
         JScrollPane mapScroll = Theme.scroll(diagram, Theme.DEEP);
         mapScroll.setPreferredSize(new Dimension(400, 170));
         mapPanel.body.add(mapScroll, BorderLayout.CENTER);
 
-        Theme.SkinPanel resultsPanel = new Theme.SkinPanel("Translation Results", "cpu", false);
-        JScrollPane resultsScroll = Theme.scroll(outTable, Theme.DEEP);
+        Theme.SkinPanel resultsPanel = new Theme.SkinPanel("Translation Results", null, true);
+        JScrollPane resultsScroll = Theme.scroll(outTable, new Color(0x16293F));
         resultsScroll.setPreferredSize(new Dimension(400, 200));
         resultsPanel.body.add(resultsScroll, BorderLayout.CENTER);
         outTable.getColumnModel().getColumn(4).setCellRenderer(new StatusRenderer());
@@ -108,29 +97,32 @@ public class SegmentationPanel extends ModulePanel {
         super.paintComponent(g);
     }
 
-    private static class LeftPanel extends JPanel implements Scrollable {
-        public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
-        public int getScrollableUnitIncrement(Rectangle r, int o, int d) { return 16; }
-        public int getScrollableBlockIncrement(Rectangle r, int o, int d) { return 64; }
-        public boolean getScrollableTracksViewportWidth() { return true; }
-        public boolean getScrollableTracksViewportHeight() { return false; }
-    }
-
     // ---------------------------------------------------------------- left column
     private JPanel segmentsPanel() {
-        Theme.SkinPanel p = new Theme.SkinPanel("Segment Table", "cards", false);
+        Theme.SkinPanel p = new Theme.SkinPanel("Segment Table", null, false);
         p.body.setLayout(new BorderLayout(0, 8));
-        JScrollPane sp = Theme.scroll(inTable, new Color(0xFBEBD2));
-        sp.setPreferredSize(new Dimension(200, 190));
-        p.body.add(sp, BorderLayout.CENTER);
+        p.body.add(Theme.scroll(inTable, Theme.CREAM), BorderLayout.CENTER);
         p.body.setToolTipText("Double-click a Base or Limit cell to edit it");
 
-        JButton add = ModuleHeader.navyButton("Add row", 100), del = ModuleHeader.navyButton("Remove", 100),
-                clr = ModuleHeader.navyButton("Clear all", 100);
-        JPanel buttons = new JPanel(new GridLayout(1, 3, 6, 0));
-        buttons.setOpaque(false);
-        buttons.add(add); buttons.add(del); buttons.add(clr);
-        p.body.add(buttons, BorderLayout.SOUTH);
+        JButton add = ModuleHeader.withIcon(ModuleHeader.navyButton("Add", 110), "plus", Theme.CREAM);
+        JButton del = ModuleHeader.withIcon(ModuleHeader.dangerButton("Remove", 110), "minus", Theme.CRIMSON);
+        JButton clr = ModuleHeader.withIcon(ModuleHeader.dangerButton("Clear all", 110), "trash", Theme.CRIMSON);
+        add.setToolTipText("Add a segment after the last one");
+
+        Runnable doRemove = () -> {
+            Util.stopEditing(inTable);
+            int[] rows = inTable.getSelectedRows();
+            for (int i = rows.length - 1; i >= 0; i--) in.removeRow(inTable.convertRowIndexToModel(rows[i]));
+            renumber();
+            clearResults();
+        };
+        Runnable doClear = () -> {
+            Util.stopEditing(inTable);
+            in.setRowCount(0);
+            clearResults();
+        };
+        // Remove and Clear all both ask "are you sure?" before running these
+        p.body.add(ModuleHeader.tableButtons(add, del, clr, inTable, in, doRemove, doClear, this), BorderLayout.SOUTH);
 
         add.addActionListener(e -> {
             Util.stopEditing(inTable);
@@ -143,39 +135,11 @@ public class SegmentationPanel extends ModulePanel {
             in.addRow(new Object[]{String.valueOf(in.getRowCount()), String.valueOf(next), "100"});
             clearResults();
         });
-        del.addActionListener(e -> {
-            Util.stopEditing(inTable);
-            int[] rows = inTable.getSelectedRows();
-            for (int i = rows.length - 1; i >= 0; i--) in.removeRow(rows[i]);
-            renumber();
-            clearResults();
-        });
-        clr.addActionListener(e -> {
-            Util.stopEditing(inTable);
-            in.setRowCount(0);
-            clearResults();
-        });
-        return p;
-    }
-
-    private JPanel stepsPanel() {
-        Theme.SkinPanel p = new Theme.SkinPanel("Calculation Steps", "gear", false);
-        steps.setEditable(false);
-        steps.setLineWrap(true);
-        steps.setWrapStyleWord(true);
-        steps.setFont(Theme.body(14f));
-        steps.setBackground(Theme.DEEP);
-        steps.setForeground(Theme.CREAM);
-        steps.setCaretColor(Theme.CREAM);
-        steps.setMargin(new Insets(8, 10, 8, 10));
-        JScrollPane sp = Theme.scroll(steps, Theme.DEEP);
-        sp.setPreferredSize(new Dimension(200, 190));
-        p.body.add(sp, BorderLayout.CENTER);
         return p;
     }
 
     private JPanel memoryPanel() {
-        Theme.SkinPanel p = new Theme.SkinPanel("Memory and Random Segments", "club", false);
+        Theme.SkinPanel p = new Theme.SkinPanel("Memory and Random Segments", null, false);
         p.body.setLayout(new BorderLayout(0, 8));
         JPanel grid = new JPanel(new GridLayout(3, 2, 6, 4));
         grid.setOpaque(false);
@@ -183,24 +147,20 @@ public class SegmentationPanel extends ModulePanel {
         grid.add(Theme.label("How many segments:", Theme.INK, 15f)); grid.add(count);
         grid.add(Theme.label("Largest limit:", Theme.INK, 15f)); grid.add(maxLimit);
         p.body.add(grid, BorderLayout.CENTER);
-        JButton rnd = ModuleHeader.navyButton("Randomize", 150), sample = ModuleHeader.navyButton("Load Sample", 150);
+        JButton rnd = ModuleHeader.withIcon(ModuleHeader.navyButton("Randomize", 150), "dice", Theme.CREAM);
+        JButton sample = ModuleHeader.withIcon(ModuleHeader.navyButton("Load Sample", 150), "sheet", Theme.CREAM);
         JPanel two = new JPanel(new GridLayout(1, 2, 6, 0));
         two.setOpaque(false);
         two.add(rnd); two.add(sample);
         p.body.add(two, BorderLayout.SOUTH);
         memSize.setToolTipText("Every segment (base + limit) must fit inside this much memory");
-        maxLimit.setToolTipText("Randomized segments get a limit between about a fifth of this and this value");
+        count.setToolTipText("Randomize picks these three values itself and fills them in");
+        maxLimit.setToolTipText("Randomize picks these three values itself and fills them in");
+        rnd.setToolTipText("Random memory size, random segments and random addresses");
+        sample.setToolTipText("Load the textbook example");
         rnd.addActionListener(e -> randomizeData());
         sample.addActionListener(e -> loadSample());
         return p;
-    }
-
-    private GridBagConstraints gbc() {
-        GridBagConstraints c = new GridBagConstraints();
-        c.anchor = GridBagConstraints.WEST;
-        c.fill = GridBagConstraints.HORIZONTAL;
-        c.insets = new Insets(3, 4, 3, 4);
-        return c;
     }
 
     // ---------------------------------------------------------------- behaviour
@@ -220,51 +180,50 @@ public class SegmentationPanel extends ModulePanel {
         showMap();
     }
 
+    /** Randomizes everything: memory size, number of segments, largest limit, the segments and the addresses. */
     @Override protected void randomizeData() {
-        try {
-            long mem = parseNumber(memSize.getText(), "Physical memory size", 1);
-            int n = Util.parseInt(count.getText(), "How many segments", 1);
-            int maxL = Util.parseInt(maxLimit.getText(), "Largest limit", 1);
-            if (n > MAX_SEGMENTS) throw new IllegalArgumentException("How many segments must be at most " + MAX_SEGMENTS + ".");
-            long[] limits = new long[n];
-            long total = 0;
-            for (int i = 0; i < n; i++) {
-                int lo = Math.max(1, maxL / 5);
-                limits[i] = lo + Util.RNG.nextInt(maxL - lo + 1);
-                total += limits[i];
-            }
-            if (total > mem) throw new IllegalArgumentException("These segments need " + total + " bytes but physical memory is only "
-                    + mem + ". Raise the memory size or lower the largest limit.");
-            List<Integer> order = new ArrayList<>();
-            for (int i = 0; i < n; i++) order.add(i);
-            Collections.shuffle(order, Util.RNG);                // segments sit in memory in a random order, with gaps between
-            long gap = mem - total, pos = 0;
-            long[] bases = new long[n];
-            for (int k : order) {
-                long g = gap > 0 ? (long) (Util.RNG.nextDouble() * (gap / 2 + 1)) : 0;
-                pos += g;
-                gap -= g;
-                bases[k] = pos;
-                pos += limits[k];
-            }
-            Util.stopEditing(inTable);
-            in.setRowCount(0);
-            for (int i = 0; i < n; i++) in.addRow(new Object[]{String.valueOf(i), String.valueOf(bases[i]), String.valueOf(limits[i])});
-            StringBuilder sb = new StringBuilder();             // some valid addresses, some too large, sometimes a missing segment
-            for (int j = 0; j < 6; j++) {
-                int s = Util.RNG.nextInt(n), roll = Util.RNG.nextInt(10);
-                long off;
-                if (roll < 7) off = Util.RNG.nextInt((int) limits[s]);
-                else if (roll < 9) off = limits[s] + Util.RNG.nextInt((int) (limits[s] / 2 + 1));
-                else { s = n + Util.RNG.nextInt(2); off = Util.RNG.nextInt(Math.max(1, maxL)); }
-                sb.append(s).append(':').append(off).append(' ');
-            }
-            addresses.setText(sb.toString().trim());
-            clearResults();
-            showMap();
-        } catch (IllegalArgumentException ex) {
-            Util.error(this, ex.getMessage());
+        int mem = 1024 * (4 + Util.RNG.nextInt(29));                    // 4096 .. 32768 bytes
+        int n = 3 + Util.RNG.nextInt(6);                                // 3 .. 8 segments
+        int maxL = Math.max(20, (int) (mem / n * (0.5 + 0.5 * Util.RNG.nextDouble())));   // n * maxL <= mem, so they always fit
+        memSize.setText(String.valueOf(mem));
+        count.setText(String.valueOf(n));
+        maxLimit.setText(String.valueOf(maxL));
+
+        long[] limits = new long[n];
+        long total = 0;
+        for (int i = 0; i < n; i++) {
+            int lo = Math.max(1, maxL / 5);
+            limits[i] = lo + Util.RNG.nextInt(maxL - lo + 1);
+            total += limits[i];
         }
+        List<Integer> order = new ArrayList<>();
+        for (int i = 0; i < n; i++) order.add(i);
+        Collections.shuffle(order, Util.RNG);                // segments sit in memory in a random order, with gaps between
+        long gap = mem - total, pos = 0;
+        long[] bases = new long[n];
+        for (int k : order) {
+            long g = gap > 0 ? (long) (Util.RNG.nextDouble() * (gap / 2 + 1)) : 0;
+            pos += g;
+            gap -= g;
+            bases[k] = pos;
+            pos += limits[k];
+        }
+        Util.stopEditing(inTable);
+        in.setRowCount(0);
+        for (int i = 0; i < n; i++) in.addRow(new Object[]{String.valueOf(i), String.valueOf(bases[i]), String.valueOf(limits[i])});
+
+        StringBuilder sb = new StringBuilder();             // some valid addresses, some too large, sometimes a missing segment
+        for (int j = 0; j < 6; j++) {
+            int s = Util.RNG.nextInt(n), roll = Util.RNG.nextInt(10);
+            long off;
+            if (roll < 7) off = Util.RNG.nextInt((int) limits[s]);
+            else if (roll < 9) off = limits[s] + Util.RNG.nextInt((int) (limits[s] / 2 + 1));
+            else { s = n + Util.RNG.nextInt(2); off = Util.RNG.nextInt(Math.max(1, maxL)); }
+            sb.append(s).append(':').append(off).append(' ');
+        }
+        addresses.setText(sb.toString().trim());
+        clearResults();
+        showMap();
     }
 
     @Override protected void runSimulation() {
@@ -274,7 +233,6 @@ public class SegmentationPanel extends ModulePanel {
             List<long[]> addrs = parseAddresses(addresses.getText());
 
             out.setRowCount(0);
-            StringBuilder log = new StringBuilder();
             List<SegmentTable.Result> results = new ArrayList<>();
             int ok = 0;
             for (long[] a : addrs) {
@@ -285,12 +243,7 @@ public class SegmentationPanel extends ModulePanel {
                 String status = r.valid ? "Valid" : r.entry == null ? "No segment" : "Out of range";
                 out.addRow(new Object[]{r.logical, r.entry == null ? "-" : String.valueOf(r.entry.limit),
                         r.entry == null ? "-" : String.valueOf(r.entry.base), r.valid ? String.valueOf(r.physical) : "-", status});
-                log.append("Logical address ").append(r.logical).append("  (segment ").append(r.segment).append(", offset ").append(r.offset).append(")\n");
-                if (r.entry != null) log.append("  Segment table: base ").append(r.entry.base).append(", limit ").append(r.entry.limit).append("\n");
-                log.append("  ").append(r.message).append("\n\n");
             }
-            steps.setText(log.toString());
-            steps.setCaretPosition(0);
             diagram.show(table, mem, results);
 
             StringBuilder msg = new StringBuilder(ok + " of " + addrs.size() + " addresses are valid, " + (addrs.size() - ok) + " caused an addressing error.");
@@ -354,7 +307,6 @@ public class SegmentationPanel extends ModulePanel {
 
     private void clearResults() {
         out.setRowCount(0);
-        steps.setText("");
         note.setText(" ");
         diagram.clear();
     }
