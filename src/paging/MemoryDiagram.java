@@ -6,12 +6,9 @@ import javax.swing.*;
 import java.awt.*;
 import java.util.*;
 
-/**
- * One row per address. One line per page (page block -> its frame block).
- * Gold = what you translated, red = page fault, cream = loaded, dark = free frame.
- */
-public class MemoryDiagram extends JPanel {
-    private static final int H = 22, TOP = 40, LX = 20, W = 230, PX = 380;
+
+public class MemoryDiagram extends JPanel implements Scrollable {
+    private static final int TOP = 40, LX = 20, MIN_H = 16, MAX_H = 26, MIN_COL = 150, MAX_COL = 320, MIN_GAP = 120;
     private static final Color LOADED = Theme.CREAM, FREE = new Color(0x2B4562),
             GOLD = new Color(0xFFC247), FAULT = new Color(0xE0534F),
             FAINT = new Color(255, 255, 255, 80), INK = Theme.INK;
@@ -21,7 +18,11 @@ public class MemoryDiagram extends JPanel {
     private Set<Integer> hotLogical = new HashSet<>();
     private Set<Long> hotPhysical = new HashSet<>();
 
-    public MemoryDiagram() { setBackground(Theme.DEEP); }
+    private int H = 22, W = 230, PX = 380;
+
+    public MemoryDiagram() {
+        setBackground(Theme.DEEP);
+    }
 
     public void show(PageTable t, Set<Integer> highlightedPages) {
         show(t, highlightedPages, new HashSet<>(), new HashSet<>());
@@ -33,11 +34,48 @@ public class MemoryDiagram extends JPanel {
         hotPages = highlightedPages;
         hotLogical = logicalAddrs;
         hotPhysical = physicalAddrs;
-        long rows = Math.max(t.getLogicalSize(), t.getPhysicalSize());
-        int height = (int) Math.min(TOP + rows * H + 20, Integer.MAX_VALUE - 1);
-        setPreferredSize(new Dimension(PX + W + 30, height));
         revalidate();
         repaint();
+    }
+
+    private long totalRows() {
+        return table == null ? 0 : Math.max(table.getLogicalSize(), table.getPhysicalSize());
+    }
+
+    private int minHeight() {
+        return (int) Math.min(TOP + totalRows() * MIN_H + 20, Integer.MAX_VALUE - 1);
+    }
+
+    @Override
+    public Dimension getPreferredSize() {
+        return new Dimension(2 * MIN_COL + MIN_GAP + 2 * LX, minHeight());
+    }
+
+    private void layoutNow() {
+        W = Math.max(MIN_COL, Math.min(MAX_COL, (getWidth() - 2 * LX - MIN_GAP) / 2));
+        PX = Math.max(LX + W + 40, getWidth() - LX - W);
+        long total = Math.max(1, totalRows());
+        H = (int) Math.max(MIN_H, Math.min(MAX_H, (getHeight() - TOP - 20) / total));
+    }
+
+    public Dimension getPreferredScrollableViewportSize() {
+        return getPreferredSize();
+    }
+
+    public int getScrollableUnitIncrement(Rectangle r, int o, int d) {
+        return H;
+    }
+
+    public int getScrollableBlockIncrement(Rectangle r, int o, int d) {
+        return Math.max(H, r.height - H);
+    }
+
+    public boolean getScrollableTracksViewportWidth() {
+        return true;
+    }
+
+    public boolean getScrollableTracksViewportHeight() {
+        return getParent() instanceof JViewport && getParent().getHeight() >= minHeight();
     }
 
     @Override
@@ -46,6 +84,7 @@ public class MemoryDiagram extends JPanel {
         Graphics2D g2 = (Graphics2D) g;
         g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         if (table == null) return;
+        layoutNow();
 
         Rectangle clip = g2.getClipBounds();
         int size = table.getPageSize(), pages = table.getPageCount();
@@ -56,9 +95,9 @@ public class MemoryDiagram extends JPanel {
         g2.setFont(g2.getFont().deriveFont(Font.BOLD, 14f));
         g2.drawString("Logical memory", LX, 28);
         g2.drawString("Physical memory", PX, 28);
-        g2.setFont(new Font(Font.MONOSPACED, Font.PLAIN, 12));
+        g2.setFont(new Font(Font.MONOSPACED, Font.PLAIN, H >= 20 ? 12 : 10));
+        int textY = H / 2 + 4;
 
-        // one line per page: faint first, gold (translated) on top
         for (int pass = 0; pass < 2; pass++) {
             boolean goldPass = pass == 1;
             g2.setColor(goldPass ? GOLD : FAINT);
@@ -74,7 +113,6 @@ public class MemoryDiagram extends JPanel {
         }
         g2.setStroke(new BasicStroke(1f));
 
-        // rows (text is kept short: address on every row, page/frame label only at the start of a block)
         long from = Math.max(0, (clip.y - TOP) / H);
         long to = Math.min(total - 1, (clip.y + clip.height - TOP) / H);
         for (long i = from; i <= to; i++) {
@@ -90,7 +128,7 @@ public class MemoryDiagram extends JPanel {
                 g2.drawRect(LX, y, W, H);
                 String label = i + "   P" + page + " +" + off;
                 if (fault) label += "   FAULT";
-                g2.drawString(label, LX + 6, y + 15);
+                g2.drawString(label, LX + 6, y + textY);
                 if (off == 0) boundary(g2, LX, y);
             }
 
@@ -104,8 +142,11 @@ public class MemoryDiagram extends JPanel {
                 g2.drawRect(PX, y, W, H);
                 g2.setColor(owner == -1 ? new Color(255, 255, 255, 110) : INK);
                 String label = i + "   F" + frame + " +" + off + (owner == -1 ? "   free" : "   (P" + owner + ")");
-                g2.drawString(label, PX + 6, y + 15);
-                if (off == 0) { g2.setColor(owner == -1 ? Theme.CREAM_SHADOW : INK); boundary(g2, PX, y); }
+                g2.drawString(label, PX + 6, y + textY);
+                if (off == 0) {
+                    g2.setColor(owner == -1 ? Theme.CREAM_SHADOW : INK);
+                    boundary(g2, PX, y);
+                }
             }
         }
     }
@@ -116,7 +157,6 @@ public class MemoryDiagram extends JPanel {
         g2.setStroke(new BasicStroke(1f));
     }
 
-    // ------------------------------------------------------------ legend
     public static JComponent legend() {
         JPanel boxes = row();
         boxes.add(item(box(GOLD), "Translated address"));
@@ -156,11 +196,19 @@ public class MemoryDiagram extends JPanel {
     private static Icon box(Color c) {
         return new Icon() {
             public void paintIcon(Component comp, Graphics g, int x, int y) {
-                g.setColor(c); g.fillRect(x, y, 14, 14);
-                g.setColor(INK); g.drawRect(x, y, 14, 14);
+                g.setColor(c);
+                g.fillRect(x, y, 14, 14);
+                g.setColor(INK);
+                g.drawRect(x, y, 14, 14);
             }
-            public int getIconWidth() { return 15; }
-            public int getIconHeight() { return 15; }
+
+            public int getIconWidth() {
+                return 15;
+            }
+
+            public int getIconHeight() {
+                return 15;
+            }
         };
     }
 
@@ -169,12 +217,19 @@ public class MemoryDiagram extends JPanel {
             public void paintIcon(Component comp, Graphics g0, int x, int y) {
                 Graphics2D g = (Graphics2D) g0.create();
                 g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g.setColor(c); g.setStroke(new BasicStroke(w));
+                g.setColor(c);
+                g.setStroke(new BasicStroke(w));
                 g.drawLine(x, y + 12, x + 24, y + 2);
                 g.dispose();
             }
-            public int getIconWidth() { return 25; }
-            public int getIconHeight() { return 15; }
+
+            public int getIconWidth() {
+                return 25;
+            }
+
+            public int getIconHeight() {
+                return 15;
+            }
         };
     }
 }

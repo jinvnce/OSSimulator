@@ -19,9 +19,11 @@ public class DiskChart extends JPanel {
     }
 
     public void show(List<Integer> path, int maxCyl) {
-        this.path = path; this.maxCyl = maxCyl;
+        this.path = path;
+        this.maxCyl = maxCyl;
         setPreferredSize(new Dimension(700, 60 + Math.max(1, path.size()) * 28));
-        revalidate(); repaint();
+        revalidate();
+        repaint();
     }
 
     @Override
@@ -34,7 +36,6 @@ public class DiskChart extends JPanel {
 
         int left = 30, right = Math.max(200, getWidth() - 40), top = 40, rowH = 28;
 
-        // axis
         g2.setColor(Theme.CREAM);
         g2.setStroke(new BasicStroke(1.5f));
         g2.drawLine(left, 22, right, 22);
@@ -42,7 +43,6 @@ public class DiskChart extends JPanel {
         String m = String.valueOf(maxCyl);
         g2.drawString(m, right - g2.getFontMetrics().stringWidth(m) + 3, 14);
 
-        // faint row guides
         g2.setColor(new Color(0x2B4562));
         g2.setStroke(new BasicStroke(1f));
         for (int i = 0; i < path.size(); i++) {
@@ -50,7 +50,6 @@ public class DiskChart extends JPanel {
             g2.drawLine(left, y, right, y);
         }
 
-        // path
         int px = 0, py = 0;
         for (int i = 0; i < path.size(); i++) {
             int x = left + (int) ((long) path.get(i) * (right - left) / Math.max(1, maxCyl));
@@ -66,7 +65,8 @@ public class DiskChart extends JPanel {
             g2.setStroke(new BasicStroke(1.5f));
             g2.drawOval(x - 5, y - 5, 10, 10);
             g2.drawString(String.valueOf(path.get(i)), x + 8, y - 5);
-            px = x; py = y;
+            px = x;
+            py = y;
         }
         g2.dispose();
     }

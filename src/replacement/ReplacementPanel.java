@@ -5,6 +5,7 @@ import ui.ModuleHeader;
 import ui.ModulePanel;
 import ui.Theme;
 import util.Util;
+import ui.Icons;
 
 import javax.swing.*;
 import java.awt.*;
@@ -14,7 +15,8 @@ public class ReplacementPanel extends ModulePanel {
     private final JTextField frames = new Theme.RoundField("3", 4);
     private final JTextField len = new Theme.RoundField("20", 4);
     private final JComboBox<PageReplacement> algo = new JComboBox<>(new PageReplacement[]{
-            new FIFOReplacement(), new LRUReplacement(), new OptimalReplacement()});
+            new FIFOReplacement(), new LRUReplacement(), new OptimalReplacement(),
+            new NFUReplacement(), new NRUReplacement()});
     private final ReplacementGrid grid = new ReplacementGrid();
     private final JLabel summary = Theme.label("Run a simulation to see the results.", Theme.INK, 16f);
 
@@ -23,38 +25,49 @@ public class ReplacementPanel extends ModulePanel {
         setOpaque(false);
         setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
 
-        JButton rnd = ModuleHeader.navyButton("Randomize", 120);
+        JButton rnd = ModuleHeader.withIcon(ModuleHeader.navyButton("Randomize", 120), "dice", Theme.CREAM);
         JButton run = ModuleHeader.runButton("Run");
+
+        refs.setFont(refs.getFont().deriveFont(16f));
+        pad(refs, 6, 12);
+        refs.setPreferredSize(new Dimension(100, 44));
+        for (JTextField f : new JTextField[]{len, frames}) {
+            f.setHorizontalAlignment(SwingConstants.CENTER);
+            f.setFont(f.getFont().deriveFont(16f));
+            pad(f, 4, 8);
+            f.setPreferredSize(new Dimension(72, 38));
+        }
+        rnd.setPreferredSize(new Dimension(140, 40));
 
         refs.setToolTipText("Page numbers, separated by spaces or commas");
         len.setToolTipText("How many references Randomize generates");
         Theme.styleCombo(algo);
-        algo.setPreferredSize(new Dimension(140, 36));
+        algo.setPreferredSize(new Dimension(180, 38));
 
-        // HEADER: banner + tool bar
         JPanel tools = ModuleHeader.toolRow();
-        tools.add(Theme.label("Length", Theme.CREAM, 16f));
+        tools.add(gap(Theme.label("Length", Theme.CREAM, 16f)));
         tools.add(len);
-        tools.add(Theme.label("Frames", Theme.CREAM, 16f));
+        tools.add(gap(Theme.label("Frames", Theme.CREAM, 16f)));
         tools.add(frames);
-        tools.add(Theme.label("Algorithm", Theme.CREAM, 16f));
+        tools.add(gap(Theme.label("Algorithm", Theme.CREAM, 16f)));
         tools.add(algo);
-        add(ModuleHeader.north("Page Replacement", "FIFO, LRU and Optimal", "heart", tools, run), BorderLayout.NORTH);
+        add(ModuleHeader.north("Page Replacement", "FIFO, LRU, Optimal, NFU and NRU", "heart", tools, run), BorderLayout.NORTH);
 
-        // REFERENCE STRING card
-        Theme.SkinPanel refCard = new Theme.SkinPanel("Reference String", null, false);
-        JPanel refRow = new JPanel(new BorderLayout(8, 0));
+        Theme.SkinPanel refCard = new Theme.SkinPanel("Reference String", "sheet", false);
+        JPanel refRow = new JPanel(new BorderLayout(12, 0));
         refRow.setOpaque(false);
+        refRow.setBorder(BorderFactory.createEmptyBorder(4, 6, 8, 6));
         refRow.add(refs, BorderLayout.CENTER);
-        refRow.add(rnd, BorderLayout.EAST);
+        JPanel refBtns = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 2));
+        refBtns.setOpaque(false);
+        refBtns.add(rnd);
+        refRow.add(refBtns, BorderLayout.EAST);
         refCard.body.add(refRow, BorderLayout.CENTER);
 
-        // TABLE card
-        Theme.SkinPanel tableCard = new Theme.SkinPanel("Page Replacement Table", null, false);
+        Theme.SkinPanel tableCard = new Theme.SkinPanel("Page Replacement Table", "diamond", false);
         tableCard.body.add(Theme.scroll(grid, Theme.DEEP), BorderLayout.CENTER);
 
-        // SUMMARY card
-        Theme.SkinPanel sumCard = new Theme.SkinPanel("Summary", null, false);
+        Theme.SkinPanel sumCard = new Theme.SkinPanel("Summary", "cpu", false);
         summary.setBorder(BorderFactory.createEmptyBorder(2, 6, 8, 0));
         sumCard.body.add(summary, BorderLayout.CENTER);
 
@@ -69,12 +82,15 @@ public class ReplacementPanel extends ModulePanel {
         run.addActionListener(e -> runSimulation());
         refs.addActionListener(e -> runSimulation());
         frames.addActionListener(e -> runSimulation());
-
-        refs.setText("7 0 1 2 0 3 0 4 2 3 0 3 2 1 2 0 1 7 0 1");      // the lecture example, so the table is never empty
+        algo.addActionListener(e -> runSimulation());
+        refs.setText("7 0 1 2 0 3 0 4 2 3 0 3 2 1 2 0 1 7 0 1");
         runSimulation();
     }
 
-    @Override public String getTitle() { return "Page Replacement"; }
+    @Override
+    public String getTitle() {
+        return "Page Replacement";
+    }
 
     @Override
     protected void randomizeData() {
@@ -84,7 +100,19 @@ public class ReplacementPanel extends ModulePanel {
             StringBuilder sb = new StringBuilder();
             for (int i = 0; i < n; i++) sb.append(Util.RNG.nextInt(range)).append(' ');
             refs.setText(sb.toString().trim());
-        } catch (IllegalArgumentException ex) { Util.error(this, ex.getMessage()); }
+        } catch (IllegalArgumentException ex) {
+            Util.error(this, ex.getMessage());
+        }
+    }
+
+    private static void pad(JTextField f, int v, int h) {
+        f.setBorder(BorderFactory.createCompoundBorder(
+                f.getBorder(), BorderFactory.createEmptyBorder(v, h, v, h)));
+    }
+
+    private static JLabel gap(JLabel l) {
+        l.setBorder(BorderFactory.createEmptyBorder(0, 14, 0, 4));
+        return l;
     }
 
     @Override
@@ -93,17 +121,21 @@ public class ReplacementPanel extends ModulePanel {
         int f;
         try {
             String text = refs.getText().trim();
-            if (text.isEmpty()) throw new IllegalArgumentException("Reference string is blank. Type pages or use Randomize.");
+            if (text.isEmpty())
+                throw new IllegalArgumentException("Reference string is blank. Type pages or use Randomize.");
             String[] parts = text.split("[\\s,]+");
             ref = new int[parts.length];
             for (int i = 0; i < parts.length; i++) ref[i] = Util.parseInt(parts[i], "Page number #" + (i + 1), 0);
             f = Util.parseInt(frames.getText(), "Number of frames", 1);
-        } catch (IllegalArgumentException ex) { Util.error(this, ex.getMessage()); return; }
+        } catch (IllegalArgumentException ex) {
+            Util.error(this, ex.getMessage());
+            return;
+        }
 
         PageReplacement alg = (PageReplacement) algo.getSelectedItem();
-        PagingResult res = alg.simulate(ref, f);           // polymorphic call
+        PagingResult res = alg.simulate(ref, f);
 
-        grid.show(res, f);
+        grid.show(res, f, alg);
         summary.setText(String.format("%s:  %d references  |  %d page faults  |  %d hits  |  hit ratio %.1f%%",
                 alg.getName(), ref.length, res.getFaults(), res.getHits(), res.getHitRatio()));
     }

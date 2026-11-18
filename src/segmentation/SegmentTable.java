@@ -3,36 +3,38 @@ package segmentation;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * The segment table of one process. Every segment has a BASE (where it starts in physical memory)
- * and a LIMIT (how long it is). A logical address is a pair  segment : offset.
- *
- *     valid     when  0 <= offset < limit        physical address = base + offset
- *     invalid   otherwise                        the hardware traps (addressing error)
- *
- * This class only does the arithmetic; the screen is in segmentation.SegmentationPanel.
- */
+
 public class SegmentTable {
-    /** One row of the table. */
     public static final class Entry {
         public final long base, limit;
-        Entry(long base, long limit) { this.base = base; this.limit = limit; }
-        public long end() { return base + limit - 1; }          // last physical address of the segment
+
+        Entry(long base, long limit) {
+            this.base = base;
+            this.limit = limit;
+        }
+
+        public long end() {
+            return base + limit - 1;
+        }
     }
 
-    /** The answer for one logical address. */
     public static final class Result {
         public final String logical;
         public final int segment;
         public final long offset;
         public final boolean valid;
-        public final long physical;             // only meaningful when valid
-        public final Entry entry;               // null when the segment does not exist
-        public final String message;            // one-line explanation (used in the calculation steps)
+        public final long physical;
+        public final Entry entry;
+        public final String message;
 
         Result(String logical, int segment, long offset, boolean valid, long physical, Entry entry, String message) {
-            this.logical = logical; this.segment = segment; this.offset = offset;
-            this.valid = valid; this.physical = physical; this.entry = entry; this.message = message;
+            this.logical = logical;
+            this.segment = segment;
+            this.offset = offset;
+            this.valid = valid;
+            this.physical = physical;
+            this.entry = entry;
+            this.message = message;
         }
     }
 
@@ -44,11 +46,14 @@ public class SegmentTable {
         entries.add(new Entry(base, limit));
     }
 
-    public int size() { return entries.size(); }
+    public int size() {
+        return entries.size();
+    }
 
-    public Entry get(int segment) { return entries.get(segment); }
+    public Entry get(int segment) {
+        return entries.get(segment);
+    }
 
-    /** Translates segment:offset. Never throws: a bad address gives a Result with valid = false. */
     public Result translate(int segment, long offset) {
         String logical = segment + ":" + offset;
         if (segment < 0 || segment >= entries.size())
@@ -67,7 +72,6 @@ public class SegmentTable {
                 "Offset " + offset + " < limit " + e.limit + ", so the address is valid.  Physical = base " + e.base + " + offset " + offset + " = " + phys + ".");
     }
 
-    /** Pairs of segment numbers whose physical memory overlaps (usually a mistake in the table). */
     public List<int[]> overlaps() {
         List<int[]> out = new ArrayList<>();
         for (int i = 0; i < entries.size(); i++)

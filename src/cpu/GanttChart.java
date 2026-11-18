@@ -2,6 +2,7 @@ package cpu;
 
 import ui.Theme;
 import util.TimeFmt;
+
 import javax.swing.*;
 import java.awt.*;
 import java.util.*;
@@ -37,10 +38,13 @@ public class GanttChart extends JPanel {
         setPreferredSize(new Dimension((int) (total * pxPerUnit) + LEFT + 40, 125));
         revalidate();
         repaint();
-        final double step = Math.max(1e-9, total / 150.0);   // animation lasts about 3 seconds
+        final double step = Math.max(1e-9, total / 150.0);
         timer = new javax.swing.Timer(20, e -> {
             shown += step;
-            if (shown >= total) { shown = total; timer.stop(); }
+            if (shown >= total) {
+                shown = total;
+                timer.stop();
+            }
             repaint();
         });
         timer.start();
@@ -78,7 +82,7 @@ public class GanttChart extends JPanel {
                 g2.setColor(Theme.INK);
                 g2.drawRoundRect(x, y, w, h, 10, 10);
                 String label = s.getLabel();
-                if (e == s.getEnd() && (s.isIdle() || w >= fm.stringWidth(label) + 6)) {   // the word Idle is always shown
+                if (e == s.getEnd() && (s.isIdle() || w >= fm.stringWidth(label) + 6)) {
                     g2.setColor(Theme.CREAM);
                     g2.drawString(label, x + (w - fm.stringWidth(label)) / 2, y + h / 2 + 5);
                 }

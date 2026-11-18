@@ -2,17 +2,13 @@ package fragmentation;
 
 import segmentation.SegmentDiagram;
 import ui.Theme;
+
 import javax.swing.*;
 import java.awt.*;
 import java.awt.geom.RoundRectangle2D;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * One row per memory block (the bar length is the block size). Inside a block you see the process, the wasted space
- * inside the block (internal fragmentation, hatched red) and the free hole that is left (dashed outline).
- * Processes that could not be placed are listed underneath.
- */
 public class AllocationDiagram extends JComponent {
     private MemoryAllocator.Result result;
     private int[] procs = new int[0];
@@ -29,15 +25,21 @@ public class AllocationDiagram extends JComponent {
         repaint();
     }
 
-    public void clear() { result = null; revalidate(); repaint(); }
+    public void clear() {
+        result = null;
+        revalidate();
+        repaint();
+    }
 
-    @Override public Dimension getPreferredSize() {
+    @Override
+    public Dimension getPreferredSize() {
         int rows = result == null ? 0 : result.blocks.length;
         int waiting = result == null ? 0 : result.waiting;
         return new Dimension(300, 54 + rows * 36 + (waiting > 0 ? 32 : 8));
     }
 
-    @Override protected void paintComponent(Graphics g0) {
+    @Override
+    protected void paintComponent(Graphics g0) {
         Graphics2D g = (Graphics2D) g0.create();
         g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
         g.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON);

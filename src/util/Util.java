@@ -9,7 +9,8 @@ import java.util.Random;
 public final class Util {
     public static final Random RNG = new Random();
 
-    private Util() { }
+    private Util() {
+    }
 
     public static int parseInt(String s, String name, int min) {
         s = s == null ? "" : s.trim();
@@ -34,9 +35,13 @@ public final class Util {
         }
     }
 
-    public static String resourceName(int j) { return j < 26 ? String.valueOf((char) ('A' + j)) : "R" + j; }
+    public static String resourceName(int j) {
+        return j < 26 ? String.valueOf((char) ('A' + j)) : "R" + j;
+    }
 
-    public static String str(Object o) { return o == null ? "" : o.toString(); }
+    public static String str(Object o) {
+        return o == null ? "" : o.toString();
+    }
 
     public static void error(Component c, String msg) {
         JOptionPane.showMessageDialog(c, msg, "Input error", JOptionPane.ERROR_MESSAGE);
@@ -54,7 +59,9 @@ public final class Util {
 
     public static DefaultTableModel readOnlyModel(String[] cols) {
         return new DefaultTableModel(cols, 0) {
-            public boolean isCellEditable(int r, int c) { return false; }
+            public boolean isCellEditable(int r, int c) {
+                return false;
+            }
         };
     }
 }

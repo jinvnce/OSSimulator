@@ -19,20 +19,21 @@ import java.awt.*;
 public class BankerPanel extends ModulePanel {
     private static final Color HEADER = Theme.CREAM_SHADOW,
             ROW_A = new Color(0xFBEBD2), ROW_B = Theme.CREAM, SAFE_GREEN = new Color(0x1E6B34),
-            GRID = new Color(0xD8BE96),          // thin column dividers
-            GROUP_LINE = new Color(0xB99A68),    // darker divider between Allocation | Max | Available | Need
-            EDGE = new Color(0xCDB28A);          // outer border
+            GRID = new Color(0xD8BE96),
+            GROUP_LINE = new Color(0xB99A68),
+            EDGE = new Color(0xCDB28A);
     private static final int FIRST_COL_W = 110, FIRST_COL_MIN = 110, COL_MIN = 48, COL_PREF = 56;
 
     private final JTextField np = new Theme.RoundField("5", 3), nr = new Theme.RoundField("4", 3);
-    private final JPanel totalsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 3));   // one box per resource type
-    private JTextField[] totals = new JTextField[0];
+    private final JPanel totalsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 3));
+    {
+        totalsPanel.setOpaque(false);
+    }    private JTextField[] totals = new JTextField[0];
     private final JTable tbl = new JTable() {
         @Override
         protected void configureEnclosingScrollPane() {
         }
 
-        // Fill the panel when everything fits, otherwise keep real column widths and scroll sideways.
         @Override
         public boolean getScrollableTracksViewportWidth() {
             return getParent() instanceof JViewport
@@ -65,7 +66,6 @@ public class BankerPanel extends ModulePanel {
         setOpaque(false);
         setBorder(BorderFactory.createEmptyBorder(8, 10, 8, 10));
 
-        // title banner
         Theme.SkinPanel banner = new Theme.SkinPanel(null, null, false);
         banner.body.setLayout(new BorderLayout(12, 0));
         banner.body.add(new JLabel(Theme.icon("diamond", 30, Theme.INK)), BorderLayout.WEST);
@@ -79,10 +79,11 @@ public class BankerPanel extends ModulePanel {
         titles.add(Theme.label("Check if the system is in a safe state.", Theme.MUTED, 14f));
         banner.body.add(titles, BorderLayout.CENTER);
         banner.setBorder(BorderFactory.createEmptyBorder(8, 14, 16, 18));
-        banner.setPreferredSize(new Dimension(400, 86));
-        banner.setMinimumSize(new Dimension(200, 86));
+        banner.body.setBorder(BorderFactory.createEmptyBorder());
+        banner.setPreferredSize(new Dimension(400, 92));
+        banner.setMinimumSize(new Dimension(200, 92));
+        banner.setMaximumSize(new Dimension(Integer.MAX_VALUE, 104));
 
-        // toolbar
         JButton rnd = new Theme.SkinButton("Randomize", "navy"),
                 chk = new Theme.SkinButton("Run Simulation", "red");
         rnd.setPreferredSize(new Dimension(130, 40));
@@ -110,7 +111,12 @@ public class BankerPanel extends ModulePanel {
         bar.setOpaque(false);
         bar.add(r1, BorderLayout.CENTER);
         bar.add(chk, BorderLayout.EAST);
-        totalsPanel.setOpaque(false);
+        JPanel runWrap = new JPanel(new GridBagLayout());
+        runWrap.setOpaque(false);
+        GridBagConstraints rc = new GridBagConstraints();
+        rc.anchor = GridBagConstraints.NORTH;
+        runWrap.add(chk, rc);
+        bar.add(runWrap, BorderLayout.EAST);
 
         JPanel north = new JPanel();
         north.setOpaque(false);
@@ -131,8 +137,8 @@ public class BankerPanel extends ModulePanel {
         add(north, BorderLayout.NORTH);
 
         setupTable();
-        JScrollPane tableScroll = Theme.scroll(tbl, ROW_A);      // (this hands the table header to the scroll pane...)
-        JPanel header = new JPanel(new BorderLayout()) {         // ...so the group bar + header panel is built after it
+        JScrollPane tableScroll = Theme.scroll(tbl, ROW_A);
+        JPanel header = new JPanel(new BorderLayout()) {
             @Override
             public Dimension getPreferredSize() {
                 Dimension d = super.getPreferredSize();
@@ -169,8 +175,8 @@ public class BankerPanel extends ModulePanel {
     private void deleteProcess() {
         Util.stopEditing(tbl);
         java.util.TreeSet<Integer> rows = new java.util.TreeSet<>();
-        for (int r : tbl.getSelectedRows()) if (r < p) rows.add(r);     // ignore the "again" rows
-        if (rows.isEmpty()) rows.add(p - 1);                            // nothing selected: last process
+        for (int r : tbl.getSelectedRows()) if (r < p) rows.add(r);
+        if (rows.isEmpty()) rows.add(p - 1);
 
         if (rows.size() >= p) {
             JOptionPane.showMessageDialog(this, "You need at least one process.",
@@ -189,8 +195,8 @@ public class BankerPanel extends ModulePanel {
     private void deleteResource() {
         Util.stopEditing(tbl);
         java.util.TreeSet<Integer> cols = new java.util.TreeSet<>();
-        for (int c : tbl.getSelectedColumns()) if (c >= 1) cols.add((c - 1) % m);   // any of its 4 columns selects it
-        if (cols.isEmpty()) cols.add(m - 1);                                         // nothing selected: last resource
+        for (int c : tbl.getSelectedColumns()) if (c >= 1) cols.add((c - 1) % m);
+        if (cols.isEmpty()) cols.add(m - 1);
 
         if (cols.size() >= m) {
             JOptionPane.showMessageDialog(this, "You need at least one resource type.",
@@ -207,7 +213,6 @@ public class BankerPanel extends ModulePanel {
         rebuildWithout(new java.util.TreeSet<>(), cols);
     }
 
-    /** Rebuilds the table minus the given processes and/or resources, keeping everything else the user typed. */
     private void rebuildWithout(java.util.Set<Integer> dropRows, java.util.Set<Integer> dropCols) {
         String[][] alloc = new String[p][m], mx = new String[p][m];
         String[] tot = new String[m];
@@ -224,7 +229,7 @@ public class BankerPanel extends ModulePanel {
 
         np.setText("" + keepRows.size());
         nr.setText("" + keepCols.size());
-        generate();                                          // rebuilds the model with the new size
+        generate();
 
         updating = true;
         for (int i = 0; i < p; i++)
@@ -249,9 +254,7 @@ public class BankerPanel extends ModulePanel {
         return "Banker's Algorithm";
     }
 
-    /**
-     * Font size that follows the column width, clamped between min and max.
-     */
+
     private static float fitSize(int colWidth, float factor, float max, float min) {
         return Math.max(min, Math.min(max, colWidth * factor));
     }
@@ -263,13 +266,13 @@ public class BankerPanel extends ModulePanel {
         tbl.setBackground(ROW_A);
         tbl.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
         tbl.setShowHorizontalLines(false);
-        tbl.setShowVerticalLines(false);                 // borders in the renderers draw every line now
-        tbl.setIntercellSpacing(new Dimension(0, 0));    // no extra gap, so nothing doubles up
+        tbl.setShowVerticalLines(false);
+        tbl.setIntercellSpacing(new Dimension(0, 0));
         tbl.setGridColor(GRID);
         tbl.setCellSelectionEnabled(true);
         tbl.setSelectionBackground(Theme.GOLD);
         tbl.setSelectionForeground(Theme.INK);
-        tbl.setFillsViewportHeight(false);      // rows stop where the data stops
+        tbl.setFillsViewportHeight(false);
         tbl.getTableHeader().setReorderingAllowed(false);
         tbl.getTableHeader().setPreferredSize(new Dimension(0, 34));
         tbl.getTableHeader().setDefaultRenderer(new DefaultTableCellRenderer() {
@@ -339,11 +342,11 @@ public class BankerPanel extends ModulePanel {
         int left = (c == 0 || !groupStart) ? 1 : 2;
         javax.swing.border.Border b = BorderFactory.createMatteBorder(0, left, 0, 0,
                 c == 0 ? EDGE : groupStart ? GROUP_LINE : GRID);
-        if (lastCol)                                                // closes the table on the right
+        if (lastCol)
             b = BorderFactory.createCompoundBorder(b, BorderFactory.createMatteBorder(0, 0, 0, 1, EDGE));
-        if (header || lastRow)                                      // header underline / closing line under the last row
+        if (header || lastRow)
             b = BorderFactory.createCompoundBorder(b, BorderFactory.createMatteBorder(0, 0, 1, 0, GROUP_LINE));
-        if (topLine > 0)                                            // separator before the "again" rows
+        if (topLine > 0)
             b = BorderFactory.createCompoundBorder(b, BorderFactory.createMatteBorder(topLine, 0, 0, 0, GRID));
         return b;
     }
@@ -369,7 +372,7 @@ public class BankerPanel extends ModulePanel {
             for (int k = 0; k < 5; k++) {
                 if (starts[k] >= cols) break;
                 int last = Math.min(starts[k + 1], cols) - 1;
-                int x = th.getHeaderRect(starts[k]).x;          // same x as the column below, so they always line up
+                int x = th.getHeaderRect(starts[k]).x;
                 int w = th.getHeaderRect(last).x + th.getHeaderRect(last).width - x;
                 if (k > 0) {
                     g2.setColor(GROUP_LINE);
@@ -385,7 +388,7 @@ public class BankerPanel extends ModulePanel {
             int endX = th.getHeaderRect(cols - 1).x + th.getHeaderRect(cols - 1).width;
             g2.setColor(EDGE);
             g2.fillRect(endX - 1, 0, 1, getHeight());
-            g2.setColor(GRID);                       // thin line between the group bar and the column header
+            g2.setColor(GRID);
             g2.fillRect(0, getHeight() - 1, getWidth(), 1);
         }
     }
@@ -407,10 +410,10 @@ public class BankerPanel extends ModulePanel {
             Object[] row = new Object[cols.length];
             row[0] = "P" + (i + 1);
             for (int c = 1; c < cols.length; c++) {
-                if (c < maxCol(0)) row[c] = "0";                       // Allocation may be 0
-                else if (c < availCol(0)) row[c] = "1";                // Max starts at 1
-                else if (c < needCol(0)) row[c] = (i == 0 ? "1" : ""); // Available (live-calculated)
-                else row[c] = "0";                                     // Need (live-calculated)
+                if (c < maxCol(0)) row[c] = "0";
+                else if (c < availCol(0)) row[c] = "1";
+                else if (c < needCol(0)) row[c] = (i == 0 ? "1" : "");
+                else row[c] = "0";
             }
             model.addRow(row);
         }
@@ -458,7 +461,7 @@ public class BankerPanel extends ModulePanel {
                 model.setValueAt("" + mx, i, maxCol(j));
                 model.setValueAt("" + Util.RNG.nextInt(mx + 1), i, allocCol(j));
             }
-        for (int j = 0; j < m; j++) {                       // total = what is allocated + a few free ones
+        for (int j = 0; j < m; j++) {
             int used = 0;
             for (int i = 0; i < p; i++) used += Integer.parseInt((String) model.getValueAt(i, allocCol(j)));
             totals[j].setText("" + Math.max(1, used + Util.RNG.nextInt(6)));

@@ -15,10 +15,27 @@ public class DiskResult {
         this.total = t;
     }
 
-    public String getName() { return name; }
-    public List<Integer> getPath() { return path; }
-    public int getSteps() { return path.size() - 1; }
-    public int getMove(int step) { return Math.abs(path.get(step + 1) - path.get(step)); }
-    public int getTotal() { return total; }
-    public double getAverage() { return getSteps() == 0 ? 0 : (double) total / getSteps(); }
+    public String getName() {
+        return name;
+    }
+
+    public List<Integer> getPath() {
+        return path;
+    }
+
+    public int getSteps() {
+        return path.size() - 1;
+    }
+
+    public int getMove(int step) {
+        return Math.abs(path.get(step + 1) - path.get(step));
+    }
+
+    public int getTotal() {
+        return total;
+    }
+
+    public double getAverage() {
+        return getSteps() == 0 ? 0 : (double) total / getSteps();
+    }
 }

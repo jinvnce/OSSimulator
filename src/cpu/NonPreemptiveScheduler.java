@@ -5,7 +5,10 @@ import java.util.*;
 public abstract class NonPreemptiveScheduler extends Scheduler {
     protected abstract int compare(PCB a, PCB b);
 
-    @Override public boolean isPreemptive() { return false; }
+    @Override
+    public boolean isPreemptive() {
+        return false;
+    }
 
     private int order(PCB a, PCB b) {
         int c = compare(a, b);
@@ -21,7 +24,7 @@ public abstract class NonPreemptiveScheduler extends Scheduler {
         long t = 0;
         int next = 0, n = byArrival.size();
         while (next < n || !ready.isEmpty()) {
-            if (ready.isEmpty() && byArrival.get(next).getArrival() > t) { // CPU idle until next arrival
+            if (ready.isEmpty() && byArrival.get(next).getArrival() > t) {
                 long na = byArrival.get(next).getArrival();
                 addSegment(timeline, null, t, na);
                 t = na;

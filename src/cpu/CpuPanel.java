@@ -4,10 +4,13 @@ import ui.ModulePanel;
 import ui.Theme;
 import util.TimeFmt;
 import util.Util;
+
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import javax.swing.table.JTableHeader;
+
 import ui.ModuleHeader;
+
 import java.awt.*;
 import java.awt.event.MouseEvent;
 import java.math.*;
@@ -29,9 +32,6 @@ public class CpuPanel extends ModulePanel {
             "Finish time (FT): when the job completed", "Waiting time (WT) = Turnaround - Burst: time spent waiting in the queue",
             "Turnaround time (TAT) = Finish - Arrival: total time from arrival to completion"};
 
-    /**
-     * The "Priority" entry of the Algorithm drop-down (it is run by PriorityRunner, not by a Scheduler).
-     */
     private static final Object PRIORITY = new Object() {
         @Override
         public String toString() {
@@ -87,7 +87,6 @@ public class CpuPanel extends ModulePanel {
         Theme.styleScroll(leftScroll);
         add(leftScroll, BorderLayout.WEST);
 
-        // right side: Gantt chart on top, results below (as in the design)
         Theme.SkinPanel ganttPanel = new Theme.SkinPanel("Gantt Chart", "diamond", false);
         JScrollPane ganttScroll = Theme.scroll(gantt, Theme.DEEP);
         ganttScroll.setPreferredSize(new Dimension(400, 170));
@@ -163,7 +162,6 @@ public class CpuPanel extends ModulePanel {
         }
     }
 
-    // ---------------------------------------------------------------- top area
     private JPanel northPanel(JButton run) {
         JPanel tools = ModuleHeader.toolRow();
         tools.add(Theme.label("Algorithm:", Theme.CREAM, 15f));
@@ -178,7 +176,6 @@ public class CpuPanel extends ModulePanel {
         return ModuleHeader.north("CPU Scheduling", "Choose an algorithm and run the simulation!", "spade", tools, run);
     }
 
-    // ---------------------------------------------------------------- left column
     private JPanel jobsPanel() {
         Theme.SkinPanel p = new Theme.SkinPanel("Process Input", "cards", false);
         p.body.setLayout(new BorderLayout());
@@ -204,14 +201,12 @@ public class CpuPanel extends ModulePanel {
             clearResults();
         };
 
-        // this call wires up the buttons (enable/disable, shortcuts); the buttons are then re-laid out below
         ModuleHeader.tableButtons(add, del, clr, inTable, in, doRemove, doClear, this);
 
         JButton rnd = ModuleHeader.withIcon(ModuleHeader.navyButton("Randomize", 140), "dice", Theme.CREAM);
         rnd.setToolTipText("Replace the table with this many random jobs");
         size.setToolTipText("How many random jobs to create (1 to " + MAX_JOBS + ")");
 
-        // both rows use the same 3 equal columns, so everything lines up
         JPanel buttons = new JPanel(new GridLayout(1, 3, 10, 0));
         buttons.setOpaque(false);
         buttons.add(add);
@@ -229,7 +224,6 @@ public class CpuPanel extends ModulePanel {
         south.add(buttons);
         south.add(randomRow);
 
-        // one wrapper gives the table and the buttons the same left/right/bottom margin
         JPanel content = new JPanel(new BorderLayout(0, 10));
         content.setOpaque(false);
         content.setBorder(BorderFactory.createEmptyBorder(0, 0, 6, 8));
@@ -308,7 +302,6 @@ public class CpuPanel extends ModulePanel {
         return c;
     }
 
-    // ---------------------------------------------------------------- small builders
     private JPanel card(String title, JLabel value, String tip, String iconName) {
         Theme.SkinPanel p = new Theme.SkinPanel(null, null, true);
         p.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 20));
@@ -380,7 +373,7 @@ public class CpuPanel extends ModulePanel {
     private void updateControls() {
         Object sel = algo.getSelectedItem();
         if (sel == PRIORITY) {
-            mode.setEnabled(true);                        // Priority can run either way
+            mode.setEnabled(true);
             algo.setToolTipText("Priority: the job with the LOWEST priority number runs first. Edit the Priority column.");
             quantumLabel.setVisible(false);
             quantum.setVisible(false);
@@ -388,16 +381,14 @@ public class CpuPanel extends ModulePanel {
         }
         Scheduler s = (Scheduler) sel;
         mode.setSelectedItem(s.isPreemptive() ? "Preemptive" : "Non-preemptive");
-        mode.setEnabled(s == sjf || s == srt);            // only SJF and SRT can run either way
+        mode.setEnabled(s == sjf || s == srt);
         algo.setToolTipText(s.getDescription());
         boolean isRR = s instanceof RoundRobinScheduler;
         quantumLabel.setVisible(isRR);
         quantum.setVisible(isRR);
     }
 
-    /**
-     * The scheduler to run: SJF + Preemptive is SRT, and SRT + Non-preemptive is SJF. (Not used for Priority.)
-     */
+
     private Scheduler chosenScheduler() {
         Scheduler s = (Scheduler) algo.getSelectedItem();
         boolean pre = "Preemptive".equals(mode.getSelectedItem());
@@ -548,7 +539,6 @@ public class CpuPanel extends ModulePanel {
             return;
         }
 
-        // run the chosen algorithm and collect the per-job times
         long[] st = new long[n], fin = new long[n];
         List<Segment> timeline = new ArrayList<>();
         String algoName;
@@ -561,7 +551,7 @@ public class CpuPanel extends ModulePanel {
             algoName = "Priority";
             preemptive = pre;
         } else {
-            timeline = scheduler.schedule(procs);               // polymorphic call
+            timeline = scheduler.schedule(procs);
             for (int i = 0; i < n; i++) {
                 st[i] = procs.get(i).getStart();
                 fin[i] = procs.get(i).getCompletion();

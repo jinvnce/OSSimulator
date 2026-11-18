@@ -31,15 +31,13 @@ public class DiskPanel extends ModulePanel {
 
     private final JLabel totalValue = big();
     private final JLabel avgValue = big();
-    private final JLabel description = Theme.label(" ", Theme.GOLD, 14f);
     private final DiskChart chart = new DiskChart();
 
     public DiskPanel() {
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(8, 12, 12, 12));
 
-        // ---------------------------------------------------------- HEADER + TOOL BAR
-        JButton rnd = ModuleHeader.navyButton("Randomize", 130);
+        JButton rnd = ModuleHeader.withIcon(ModuleHeader.navyButton("Randomize", 140), "dice", Theme.CREAM);
         JButton run = ModuleHeader.runButton("Run");
 
         requests.setToolTipText("Cylinders in arrival order, separated by spaces or commas");
@@ -66,14 +64,10 @@ public class DiskPanel extends ModulePanel {
         row2.add(Theme.label("Algorithm", Theme.CREAM, 15f));
         row2.add(algo);
 
-        description.setFont(description.getFont().deriveFont(Font.ITALIC));
-        JPanel row3 = ModuleHeader.toolRow();
-        row3.add(description);
-
         JPanel tools = new JPanel();
         tools.setOpaque(false);
         tools.setLayout(new BoxLayout(tools, BoxLayout.Y_AXIS));
-        for (JComponent c : new JComponent[]{row1, row2, row3}) {
+        for (JComponent c : new JComponent[]{row1, row2}) {
             c.setAlignmentX(Component.LEFT_ALIGNMENT);
             tools.add(c);
         }
@@ -83,7 +77,6 @@ public class DiskPanel extends ModulePanel {
                 "Compare how far the head travels under each algorithm",
                 "gear", tools, run), BorderLayout.NORTH);
 
-        // ---------------------------------------------------------- TABLE STYLING
         Theme.styleTable(stepsTable, true);
         Theme.styleTable(compareTable, true);
 
@@ -91,38 +84,36 @@ public class DiskPanel extends ModulePanel {
         stepsTable.getColumnModel().getColumn(1).setPreferredWidth(60);
         stepsTable.getColumnModel().getColumn(2).setPreferredWidth(140);
 
-        // ---------------------------------------------------------- RESULT CARDS (navy)
-        Theme.SkinPanel seqCard = new Theme.SkinPanel("Sequence", null, true);
+        Theme.SkinPanel seqCard = new Theme.SkinPanel("Sequence", "list", true);
         seqCard.body.add(Theme.scroll(stepsTable, DARK_ROW), BorderLayout.CENTER);
 
-        Theme.SkinPanel cmpCard = new Theme.SkinPanel("Comparison", null, true);
+        Theme.SkinPanel cmpCard = new Theme.SkinPanel("Comparison", "compare", true);
         cmpCard.body.add(Theme.scroll(compareTable, DARK_ROW), BorderLayout.CENTER);
 
-        Theme.SkinPanel chartCard = new Theme.SkinPanel("Head path", null, true);
+        Theme.SkinPanel chartCard = new Theme.SkinPanel("Head path", "path", true);
         chartCard.body.add(Theme.scroll(chart, DARK_ROW), BorderLayout.CENTER);
 
-        // ---------------------------------------------------------- LAYOUT
-        JSplitPane left = Theme.split(seqCard, cmpCard);
-        left.setResizeWeight(0.65);
+        Theme.SkinPanel totalsCard = new Theme.SkinPanel("Totals", "stats", true);
+        JPanel stats = new JPanel(new GridLayout(1, 2, 10, 0));
+        stats.setOpaque(false);
+        stats.add(stat("Total", totalValue));
+        stats.add(stat("Avg / seek", avgValue));
+        totalsCard.body.add(stats, BorderLayout.CENTER);
 
-        JSplitPane main = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, left, chartCard);
-        main.setResizeWeight(0.35);
+        JSplitPane left = Theme.split(seqCard, cmpCard);
+        left.setResizeWeight(0.6);
+
+        JSplitPane right = Theme.split(chartCard, totalsCard);
+        right.setResizeWeight(0.8);
+
+        JSplitPane main = new JSplitPane(JSplitPane.HORIZONTAL_SPLIT, left, right);
+        main.setResizeWeight(0.4);
         main.setBorder(null);
         main.setOpaque(false);
         main.setDividerSize(10);
         main.setContinuousLayout(true);
         add(main, BorderLayout.CENTER);
 
-        // BOTTOM: totals
-        JPanel summary = new JPanel(new GridLayout(1, 2, 10, 0));
-        summary.setOpaque(false);
-        summary.add(card("Total", totalValue));
-        summary.add(card("Avg / seek", avgValue));
-        add(summary, BorderLayout.SOUTH);
-
-        // ---------------------------------------------------------- ACTIONS
-        algo.addActionListener(e -> description.setText(descriptionOf()));
-        description.setText(descriptionOf());
         rnd.addActionListener(e -> randomizeData());
         run.addActionListener(e -> runSimulation());
     }
@@ -132,11 +123,9 @@ public class DiskPanel extends ModulePanel {
         Theme.paintBackground(g, this);
     }
 
-    @Override public String getTitle() { return "Disk Scheduling"; }
-
-    private String descriptionOf() {
-        String d = ((DiskScheduler) algo.getSelectedItem()).getDescription();
-        return d == null || d.isEmpty() ? " " : d;
+    @Override
+    public String getTitle() {
+        return "Disk Scheduling";
     }
 
     private static JLabel big() {
@@ -146,9 +135,13 @@ public class DiskPanel extends ModulePanel {
         return l;
     }
 
-    private Theme.SkinPanel card(String title, JLabel v) {
-        Theme.SkinPanel p = new Theme.SkinPanel(title, null, true);
-        p.body.add(v, BorderLayout.CENTER);
+    private static JPanel stat(String caption, JLabel value) {
+        JPanel p = new JPanel(new BorderLayout(0, 2));
+        p.setOpaque(false);
+        JLabel c = Theme.label(caption, Theme.CREAM, 14f);
+        c.setHorizontalAlignment(SwingConstants.CENTER);
+        p.add(c, BorderLayout.NORTH);
+        p.add(value, BorderLayout.CENTER);
         return p;
     }
 
@@ -161,10 +154,15 @@ public class DiskPanel extends ModulePanel {
             for (int i = 0; i < n; i++) sb.append(Util.RNG.nextInt(max + 1)).append(' ');
             requests.setText(sb.toString().trim());
             head.setText(String.valueOf(Util.RNG.nextInt(max + 1)));
-        } catch (IllegalArgumentException ex) { Util.error(this, ex.getMessage()); }
+        } catch (IllegalArgumentException ex) {
+            Util.error(this, ex.getMessage());
+        }
     }
 
-    private static class Input { int head, max; List<Integer> reqs = new ArrayList<>(); }
+    private static class Input {
+        int head, max;
+        List<Integer> reqs = new ArrayList<>();
+    }
 
     private Input read() {
         Input in = new Input();
@@ -176,7 +174,8 @@ public class DiskPanel extends ModulePanel {
         String[] parts = text.split("[\\s,]+");
         for (int i = 0; i < parts.length; i++) {
             int c = Util.parseInt(parts[i], "Cylinder #" + (i + 1), 0);
-            if (c > in.max) throw new IllegalArgumentException("Cylinder #" + (i + 1) + " (" + c + ") is more than Max (" + in.max + ").");
+            if (c > in.max)
+                throw new IllegalArgumentException("Cylinder #" + (i + 1) + " (" + c + ") is more than Max (" + in.max + ").");
             in.reqs.add(c);
         }
         return in;
@@ -185,12 +184,16 @@ public class DiskPanel extends ModulePanel {
     @Override
     protected void runSimulation() {
         Input in;
-        try { in = read(); } catch (IllegalArgumentException ex) { Util.error(this, ex.getMessage()); return; }
+        try {
+            in = read();
+        } catch (IllegalArgumentException ex) {
+            Util.error(this, ex.getMessage());
+            return;
+        }
 
         DiskScheduler alg = (DiskScheduler) algo.getSelectedItem();
         DiskResult r = alg.schedule(in.head, in.reqs, true, in.max);
 
-        // SEQUENCE: track served and the subtraction (larger - smaller)
         steps.setRowCount(0);
         steps.addRow(new Object[]{"Start", r.getPath().get(0), ""});
 
@@ -211,7 +214,6 @@ public class DiskPanel extends ModulePanel {
         compareAll(in);
     }
 
-    // COMPARISON (best first)
     private void compareAll(Input in) {
         List<DiskResult> results = new ArrayList<>();
 

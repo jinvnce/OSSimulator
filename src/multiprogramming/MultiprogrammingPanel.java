@@ -19,7 +19,6 @@ public class MultiprogrammingPanel extends ModulePanel {
     private static final double EPS = 0.0000001;
     private static final Color DARK_ROW = new Color(0x16293F);
 
-    // INPUT TABLE
     private final DefaultTableModel input = new DefaultTableModel(
             new String[]{"Job", "Arrival", "Burst"}, 0
     ) {
@@ -29,12 +28,10 @@ public class MultiprogrammingPanel extends ModulePanel {
         }
     };
 
-    // SIMULATION TABLE
     private final DefaultTableModel simulation = Util.readOnlyModel(
             new String[]{"Time", "Event", "Jobs", "%CPU/job", "Elapsed Time", "Headway/Job", "Job#", "Left"}
     );
 
-    // SUMMARY TABLE
     private final DefaultTableModel summary = Util.readOnlyModel(
             new String[]{"Measure", "Value"}
     );
@@ -48,22 +45,30 @@ public class MultiprogrammingPanel extends ModulePanel {
     private final JTextField jobCount = new Theme.RoundField("4", 4);
     private final JTextField maxBurst = new Theme.RoundField("10", 4);
 
+    private final JComboBox<Integer> decimals = new JComboBox<>(new Integer[]{0, 1, 2, 3, 4, 5, 6});
+
     public MultiprogrammingPanel() {
 
         setLayout(new BorderLayout(10, 10));
         setBorder(BorderFactory.createEmptyBorder(8, 12, 12, 12));
 
-        // ---------------------------------------------------------- HEADER + TOOL BAR
         JPanel tools = ModuleHeader.toolRow();
         JButton random = ModuleHeader.withIcon(ModuleHeader.navyButton("Randomize", 140), "dice", Theme.CREAM);
         random.setToolTipText("Generate jobs using the values on the left");
         jobCount.setToolTipText("How many jobs to generate");
         maxBurst.setToolTipText("Largest burst time a generated job can have");
 
+        Theme.styleCombo(decimals);
+        decimals.setSelectedItem(3);
+        decimals.setPreferredSize(new Dimension(70, 34));
+        decimals.setToolTipText("How many decimal places to show in the results (0 to 6)");
+
         tools.add(Theme.label("Jobs", Theme.CREAM, 15f));
         tools.add(jobCount);
         tools.add(Theme.label("Max burst", Theme.CREAM, 15f));
         tools.add(maxBurst);
+        tools.add(Theme.label("Decimals", Theme.CREAM, 15f));
+        tools.add(decimals);
         tools.add(random);
 
         JButton run = ModuleHeader.runButton("Run");
@@ -72,7 +77,6 @@ public class MultiprogrammingPanel extends ModulePanel {
                 "Jobs share the CPU equally; watch the headway of each job",
                 "memory", tools, run), BorderLayout.NORTH);
 
-        // ---------------------------------------------------------- TABLE STYLING
         Theme.styleTable(inputTable, false);
         Theme.styleTable(simulationTable, true);
         Theme.styleTable(summaryTable, true);
@@ -85,12 +89,10 @@ public class MultiprogrammingPanel extends ModulePanel {
             cm.getColumn(i).setPreferredWidth(w[i]);
         }
 
-        // WRAP LONG TEXT (Event, Job#, Left)
         for (int c : new int[]{1, 6, 7}) {
             cm.getColumn(c).setCellRenderer(new WrapRenderer(true));
         }
 
-        // Timeline look
         timeline.setEditable(false);
         timeline.setFont(Theme.body(14f));
         timeline.setBackground(DARK_ROW);
@@ -100,8 +102,7 @@ public class MultiprogrammingPanel extends ModulePanel {
         timeline.setSelectedTextColor(Theme.INK);
         timeline.setMargin(new Insets(6, 8, 6, 8));
 
-        // ---------------------------------------------------------- INPUT CARD (cream)
-        Theme.SkinPanel jobsCard = new Theme.SkinPanel("Jobs", null, false);
+        Theme.SkinPanel jobsCard = new Theme.SkinPanel("Jobs", "table", false);
         jobsCard.body.setLayout(new BorderLayout(0, 8));
         jobsCard.body.add(Theme.scroll(inputTable, Theme.CREAM), BorderLayout.CENTER);
 
@@ -122,21 +123,20 @@ public class MultiprogrammingPanel extends ModulePanel {
             Util.stopEditing(inputTable);
             input.setRowCount(0);
         };
-        // Remove and Clear all both ask "are you sure?" before running these
         jobsCard.body.add(ModuleHeader.tableButtons(add, remove, clear, inputTable, input, doRemove, doClear, this),
                 BorderLayout.SOUTH);
 
-        // ---------------------------------------------------------- RESULT CARDS (navy)
-        Theme.SkinPanel summaryCard = new Theme.SkinPanel("Summary", null, true);
+        Theme.SkinPanel summaryCard = new Theme.SkinPanel("Summary", "sheet", true);
+
         summaryCard.body.add(Theme.scroll(summaryTable, DARK_ROW), BorderLayout.CENTER);
 
-        Theme.SkinPanel simCard = new Theme.SkinPanel("Simulation", null, true);
+        Theme.SkinPanel simCard = new Theme.SkinPanel("Simulation", "chip", true);
+
         simCard.body.add(Theme.scroll(simulationTable, DARK_ROW), BorderLayout.CENTER);
 
-        Theme.SkinPanel timelineCard = new Theme.SkinPanel("Timeline", null, true);
+        Theme.SkinPanel timelineCard = new Theme.SkinPanel("Timeline", "list", true);
         timelineCard.body.add(Theme.scroll(timeline, DARK_ROW), BorderLayout.CENTER);
 
-        // ---------------------------------------------------------- LAYOUT
         JSplitPane left = Theme.split(jobsCard, summaryCard);
         left.setResizeWeight(0.55);
 
@@ -152,8 +152,6 @@ public class MultiprogrammingPanel extends ModulePanel {
 
         add(main, BorderLayout.CENTER);
 
-        // ---------------------------------------------------------- ACTIONS
-        // ADD JOB
         add.addActionListener(e -> {
 
             Random rng = new Random();
@@ -170,7 +168,7 @@ public class MultiprogrammingPanel extends ModulePanel {
             }
 
             double arrival = rng.nextInt(20);
-            double burst = 0.5 + rng.nextDouble() * (max - 0.5);
+            double burst = randomBurst(rng, max);
 
             input.addRow(new Object[]{
                     "J" + (input.getRowCount() + 1),
@@ -182,7 +180,12 @@ public class MultiprogrammingPanel extends ModulePanel {
         random.addActionListener(e -> randomizeData());
         run.addActionListener(e -> runSimulation());
 
-        // DEFAULT DATA
+        decimals.addActionListener(e -> {
+            if (simulation.getRowCount() > 0) {
+                runSimulation();
+            }
+        });
+
         input.addRow(new Object[]{"J1", "7.5", "0.5"});
         input.addRow(new Object[]{"J2", "8.1", "0.6"});
     }
@@ -197,7 +200,6 @@ public class MultiprogrammingPanel extends ModulePanel {
         return "Multiprogramming";
     }
 
-    /** Cell editor that matches the theme (centered text, crimson outline while editing). */
     private void installInputEditor() {
         JTextField tf = new JTextField();
         tf.setFont(Theme.body(15f));
@@ -211,14 +213,12 @@ public class MultiprogrammingPanel extends ModulePanel {
         inputTable.setDefaultEditor(Object.class, new DefaultCellEditor(tf));
     }
 
-    // RENUMBER JOBS
     private void renumber() {
         for (int i = 0; i < input.getRowCount(); i++) {
             input.setValueAt("J" + (i + 1), i, 0);
         }
     }
 
-    // JOB CLASS
     private static class Job {
 
         int id;
@@ -241,7 +241,6 @@ public class MultiprogrammingPanel extends ModulePanel {
         }
     }
 
-    // RANDOMIZE
     @Override
     protected void randomizeData() {
 
@@ -264,7 +263,7 @@ public class MultiprogrammingPanel extends ModulePanel {
             for (int i = 0; i < n; i++) {
 
                 double arrival = rng.nextInt(20);
-                double burst = 0.5 + rng.nextDouble() * (max - 0.5);
+                double burst = randomBurst(rng, max);
 
                 input.addRow(new Object[]{
                         "J" + (i + 1),
@@ -280,7 +279,15 @@ public class MultiprogrammingPanel extends ModulePanel {
         }
     }
 
-    // RUN SIMULATION
+
+    private double randomBurst(Random rng, int max) {
+        int d = (Integer) decimals.getSelectedItem();
+        double step = Math.pow(10, -d);
+        double raw = 0.5 + rng.nextDouble() * (max - 0.5);
+        double rounded = Math.round(raw / step) * step;
+        return Math.max(step, rounded);
+    }
+
     @Override
     protected void runSimulation() {
 
@@ -335,7 +342,6 @@ public class MultiprogrammingPanel extends ModulePanel {
         simulate(jobs);
     }
 
-    // SIMULATION
     private void simulate(List<Job> jobs) {
 
         simulation.setRowCount(0);
@@ -357,7 +363,6 @@ public class MultiprogrammingPanel extends ModulePanel {
 
         while (completed < jobs.size()) {
 
-            // IDLE: JUMP TO NEXT ARRIVAL (NO JOBS INSIDE BEFORE IT)
             if (active.isEmpty()) {
 
                 time = jobs.get(nextJob).arrival;
@@ -388,12 +393,10 @@ public class MultiprogrammingPanel extends ModulePanel {
                 continue;
             }
 
-            // NEXT ARRIVAL TIME
             double nextArrival = nextJob < jobs.size()
                     ? jobs.get(nextJob).arrival
                     : Double.POSITIVE_INFINITY;
 
-            // FIND NEXT EVENT (COMPLETION OR ARRIVAL)
             double elapsed = nextArrival - time;
 
             for (Job j : active) {
@@ -404,7 +407,6 @@ public class MultiprogrammingPanel extends ModulePanel {
                 break;
             }
 
-            // CPU SHARING
             int activeCount = active.size();
 
             double cpuPercentage = 100.0 / activeCount;
@@ -412,7 +414,6 @@ public class MultiprogrammingPanel extends ModulePanel {
 
             double previousTime = time;
 
-            // UPDATE REMAINING TIMES
             for (Job j : active) {
 
                 j.remaining -= headway;
@@ -422,11 +423,9 @@ public class MultiprogrammingPanel extends ModulePanel {
                 }
             }
 
-            // ADVANCE TIME
             time += elapsed;
             cpuBusy += elapsed;
 
-            // JOBS INSIDE DURING THIS INTERVAL (BEFORE ANY ARRIVAL)
             StringJoiner activeJobs = new StringJoiner(", ");
             StringJoiner remainingTimes = new StringJoiner(", ");
 
@@ -435,7 +434,6 @@ public class MultiprogrammingPanel extends ModulePanel {
                 remainingTimes.add(fmt(j.remaining));
             }
 
-            // FIND COMPLETED JOBS
             List<Job> finished = new ArrayList<>();
             StringJoiner terminatedJobs = new StringJoiner(", ");
 
@@ -464,7 +462,6 @@ public class MultiprogrammingPanel extends ModulePanel {
                 }
             }
 
-            // FIND ARRIVALS AT THIS TIME
             List<Job> arriving = new ArrayList<>();
             StringJoiner arrivedJobs = new StringJoiner(", ");
 
@@ -483,7 +480,6 @@ public class MultiprogrammingPanel extends ModulePanel {
                         .append("\n");
             }
 
-            // EVENT TEXT
             StringJoiner event = new StringJoiner("; ");
 
             if (!finished.isEmpty()) {
@@ -494,7 +490,6 @@ public class MultiprogrammingPanel extends ModulePanel {
                 event.add(arrivedJobs + " Arrived/Started");
             }
 
-            // ONE ROW PER EVENT TIME
             simulation.addRow(new Object[]{
                     fmt(time),
                     event.toString(),
@@ -506,12 +501,10 @@ public class MultiprogrammingPanel extends ModulePanel {
                     remainingTimes.toString()
             });
 
-            // UPDATE JOBS INSIDE
             active.removeAll(finished);
             active.addAll(arriving);
         }
 
-        // SUMMARY
         double totalTime = time - jobs.get(0).arrival;
 
         summary.addRow(new Object[]{"Jobs", jobs.size()});
@@ -522,12 +515,10 @@ public class MultiprogrammingPanel extends ModulePanel {
         summary.addRow(new Object[]{"CPU utilization",
                 fmt(totalTime > 0 ? (cpuBusy / totalTime) * 100 : 0) + "%"});
 
-        // DISPLAY TIMELINE
         timeline.setText(log.toString());
         timeline.setCaretPosition(0);
     }
 
-    // WRAPPING CELL RENDERER (themed: zebra rows, same colors as Theme.styleTable)
     private static class WrapRenderer extends JTextArea implements TableCellRenderer {
 
         private static final JTextArea MEASURE = new JTextArea();
@@ -563,7 +554,6 @@ public class MultiprogrammingPanel extends ModulePanel {
             return this;
         }
 
-        // TALLEST WRAPPED CELL IN THE ROW
         private static int rowHeightFor(JTable table, int row) {
 
             int h = table.getRowHeight();
@@ -591,8 +581,8 @@ public class MultiprogrammingPanel extends ModulePanel {
         }
     }
 
-    // FORMAT DECIMAL VALUES
-    private static String fmt(double value) {
-        return String.format(Locale.US, "%.3f", value);
+    private String fmt(double value) {
+        int d = (Integer) decimals.getSelectedItem();
+        return String.format(Locale.US, "%." + d + "f", value);
     }
 }

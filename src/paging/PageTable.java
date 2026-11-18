@@ -12,8 +12,10 @@ public class PageTable {
         if (pageSize < 1) throw new IllegalArgumentException("Page size must be at least 1.");
         if (numFrames < 1) throw new IllegalArgumentException("Number of frames must be at least 1.");
         if (frameOf.length < 1) throw new IllegalArgumentException("There must be at least one page.");
-        if ((long) pageSize * frameOf.length > Integer.MAX_VALUE) throw new IllegalArgumentException("Logical memory is too large (pages x page size must be below 2,147,483,647).");
-        if ((long) pageSize * numFrames > Integer.MAX_VALUE) throw new IllegalArgumentException("Physical memory is too large (frames x page size must be below 2,147,483,647).");
+        if ((long) pageSize * frameOf.length > Integer.MAX_VALUE)
+            throw new IllegalArgumentException("Logical memory is too large (pages x page size must be below 2,147,483,647).");
+        if ((long) pageSize * numFrames > Integer.MAX_VALUE)
+            throw new IllegalArgumentException("Physical memory is too large (frames x page size must be below 2,147,483,647).");
         this.pageSize = pageSize;
         this.numFrames = numFrames;
         this.frameOf = frameOf.clone();
@@ -30,13 +32,33 @@ public class PageTable {
         }
     }
 
-    public int getPageSize() { return pageSize; }
-    public int getPageCount() { return frameOf.length; }
-    public int getFrameCount() { return numFrames; }
-    public int getFrameOf(int page) { return frameOf[page]; }
-    public int getPageInFrame(int frame) { return owner[frame]; }
-    public int getLogicalSize() { return pageSize * frameOf.length; }
-    public int getPhysicalSize() { return pageSize * numFrames; }
+    public int getPageSize() {
+        return pageSize;
+    }
+
+    public int getPageCount() {
+        return frameOf.length;
+    }
+
+    public int getFrameCount() {
+        return numFrames;
+    }
+
+    public int getFrameOf(int page) {
+        return frameOf[page];
+    }
+
+    public int getPageInFrame(int frame) {
+        return owner[frame];
+    }
+
+    public int getLogicalSize() {
+        return pageSize * frameOf.length;
+    }
+
+    public int getPhysicalSize() {
+        return pageSize * numFrames;
+    }
 
     public Translation translate(int address) {
         if (address < 0 || address >= getLogicalSize())
@@ -64,6 +86,9 @@ public class PageTable {
         public int logical, page, offset, frame;
         public long physical;
         public final List<String> steps = new ArrayList<>();
-        public boolean inMemory() { return frame != -1; }
+
+        public boolean inMemory() {
+            return frame != -1;
+        }
     }
 }

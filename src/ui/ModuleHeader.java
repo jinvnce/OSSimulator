@@ -4,14 +4,11 @@ import javax.swing.*;
 import java.awt.*;
 import java.awt.event.ActionListener;
 
-/** The title banner + tool bar that sits at the top of a module (same look as the CPU Scheduling screen). */
 public final class ModuleHeader {
-    private ModuleHeader() { }
+    private ModuleHeader() {
+    }
 
-    /**
-     * @param tools the left part of the tool bar (labels, boxes, drop-downs)
-     * @param run   the red main button on the right
-     */
+
     public static JPanel north(String title, String subtitle, String iconName, JComponent tools, JButton run) {
         Theme.SkinPanel banner = new Theme.SkinPanel(null, null, false);
         banner.body.setLayout(new BorderLayout(12, 0));
@@ -26,10 +23,10 @@ public final class ModuleHeader {
         titles.add(Theme.label(subtitle, Theme.MUTED, 14f));
         banner.body.add(titles, BorderLayout.CENTER);
         banner.setBorder(BorderFactory.createEmptyBorder(8, 14, 16, 18));
-        banner.setPreferredSize(new Dimension(400, 86));
-        banner.setMinimumSize(new Dimension(200, 86));
+        banner.body.setBorder(BorderFactory.createEmptyBorder());
+        banner.setPreferredSize(new Dimension(400, 92));
+        banner.setMinimumSize(new Dimension(200, 92));
 
-        // Wrap the Run button so it keeps its own size instead of stretching to the height of the tool bar.
         JPanel runWrap = new JPanel(new GridBagLayout());
         runWrap.setOpaque(false);
         GridBagConstraints rc = new GridBagConstraints();
@@ -51,14 +48,12 @@ public final class ModuleHeader {
         return north;
     }
 
-    /** A row of tool bar items on the dark background. */
     public static JPanel toolRow() {
         JPanel p = new JPanel(new FlowLayout(FlowLayout.LEFT, 10, 4));
         p.setOpaque(false);
         return p;
     }
 
-    /** The red main button. */
     public static JButton runButton(String text) {
         JButton run = new Theme.SkinButton(text, "red");
         run.setIcon(Theme.playIcon(12, Theme.CREAM));
@@ -67,7 +62,6 @@ public final class ModuleHeader {
         return run;
     }
 
-    /** A small navy button used in cards. */
     public static JButton navyButton(String text, int width) {
         JButton b = new Theme.SkinButton(text, "navy");
         b.setMargin(new Insets(4, 4, 8, 4));
@@ -75,7 +69,6 @@ public final class ModuleHeader {
         return b;
     }
 
-    /** A destructive action (Remove, Clear all): cream button with red text, so it never looks like a safe action. */
     public static JButton dangerButton(String text, int width) {
         JButton b = new Theme.SkinButton(text, "danger");
         b.setMargin(new Insets(4, 4, 8, 4));
@@ -83,19 +76,11 @@ public final class ModuleHeader {
         return b;
     }
 
-    /** Shortcut for {@link Icons#on}: puts a code-drawn icon ("plus", "minus", "trash", "dice", "sheet") on a button. */
     public static JButton withIcon(JButton b, String kind, Color color) {
         return Icons.on(b, kind, color);
     }
 
-    /**
-     * The Add / Remove / Clear row used under every editable table: Add (safe, navy) on the left,
-     * then a gap, then the two destructive buttons. Remove is only enabled when a row is selected,
-     * Clear all only when the table has rows. BOTH Remove and Clear all ask before they delete.
-     *
-     * @param doRemove deletes the selected rows (run only after the person clicks Yes)
-     * @param doClear  deletes every row (run only after the person clicks Yes)
-     */
+
     public static JPanel tableButtons(JButton add, JButton del, JButton clr, JTable table, javax.swing.table.DefaultTableModel model,
                                       Runnable doRemove, Runnable doClear, Component parent) {
         add.setToolTipText("Add a new row");
@@ -131,17 +116,22 @@ public final class ModuleHeader {
         GridBagConstraints c = new GridBagConstraints();
         c.fill = GridBagConstraints.HORIZONTAL;
         c.weightx = 1;
-        c.gridx = 0; c.insets = new Insets(0, 0, 0, 0); p.add(add, c);
-        c.gridx = 1; c.insets = new Insets(0, 18, 0, 0); p.add(del, c);     // wider gap = separates safe from destructive
-        c.gridx = 2; c.insets = new Insets(0, 6, 0, 0); p.add(clr, c);
+        c.gridx = 0;
+        c.insets = new Insets(0, 0, 0, 0);
+        p.add(add, c);
+        c.gridx = 1;
+        c.insets = new Insets(0, 18, 0, 0);
+        p.add(del, c);
+        c.gridx = 2;
+        c.insets = new Insets(0, 6, 0, 0);
+        p.add(clr, c);
         return p;
     }
 
-    /** Older form (Clear all asks, Remove does not). Kept so panels not updated yet still compile. */
     public static JPanel tableButtons(JButton add, JButton del, JButton clr, JTable table, javax.swing.table.DefaultTableModel model,
                                       Runnable doClear, Component parent) {
-        JPanel p = tableButtons(add, del, clr, table, model, () -> { }, doClear, parent);
-        // restore the caller's own Remove listener behaviour: this form must not touch Remove
+        JPanel p = tableButtons(add, del, clr, table, model, () -> {
+        }, doClear, parent);
         for (ActionListener l : del.getActionListeners()) del.removeActionListener(l);
         return p;
     }

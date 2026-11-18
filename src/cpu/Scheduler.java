@@ -21,7 +21,10 @@ public abstract class Scheduler {
     protected void addSegment(List<Segment> timeline, PCB p, long start, long end) {
         if (!timeline.isEmpty()) {
             Segment last = timeline.get(timeline.size() - 1);
-            if (last.getProcess() == p && last.getEnd() == start) { last.setEnd(end); return; }
+            if (last.getProcess() == p && last.getEnd() == start) {
+                last.setEnd(end);
+                return;
+            }
         }
         timeline.add(new Segment(p, start, end));
     }
@@ -32,5 +35,8 @@ public abstract class Scheduler {
         return sorted;
     }
 
-    @Override public String toString() { return getName(); }
+    @Override
+    public String toString() {
+        return getName();
+    }
 }

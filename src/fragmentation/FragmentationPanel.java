@@ -4,6 +4,7 @@ import ui.ModuleHeader;
 import ui.ModulePanel;
 import ui.Theme;
 import util.Util;
+
 import javax.swing.*;
 import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
@@ -11,12 +12,6 @@ import javax.swing.table.JTableHeader;
 import java.awt.*;
 import java.awt.event.MouseEvent;
 
-/**
- * Fragmentation: the user enters memory blocks and processes, picks a placement strategy (First / Best / Worst Fit),
- * a memory type (fixed or dynamic partitions) and a unit (KB, MB or GB). The screen shows where every process went
- * and measures internal fragmentation (wasted space inside a block) and external fragmentation
- * (free memory in unusable pieces).
- */
 public class FragmentationPanel extends ModulePanel {
     private static final int MAX_BLOCKS = 40, MAX_PROCESSES = 60, MAX_SIZE = 1_000_000;
     private static final String FIXED = "Fixed partitions", DYNAMIC = "Dynamic partitions";
@@ -83,7 +78,6 @@ public class FragmentationPanel extends ModulePanel {
         Theme.styleScroll(leftScroll);
         add(leftScroll, BorderLayout.WEST);
 
-        // right side: memory map, allocation table
         Theme.SkinPanel mapPanel = new Theme.SkinPanel("Memory Map", "memory", false);
         JScrollPane mapScroll = Theme.scroll(diagram, Theme.DEEP);
         mapScroll.setPreferredSize(new Dimension(400, 230));
@@ -117,23 +111,38 @@ public class FragmentationPanel extends ModulePanel {
         unitBox.addActionListener(e -> applyUnit());
     }
 
-    @Override protected void paintComponent(Graphics g) {
+    @Override
+    protected void paintComponent(Graphics g) {
         Theme.paintBackground(g, this);
         super.paintComponent(g);
     }
 
     private static class LeftPanel extends JPanel implements Scrollable {
-        public Dimension getPreferredScrollableViewportSize() { return getPreferredSize(); }
-        public int getScrollableUnitIncrement(Rectangle r, int o, int d) { return 16; }
-        public int getScrollableBlockIncrement(Rectangle r, int o, int d) { return 64; }
-        public boolean getScrollableTracksViewportWidth() { return true; }
-        public boolean getScrollableTracksViewportHeight() { return false; }
+        public Dimension getPreferredScrollableViewportSize() {
+            return getPreferredSize();
+        }
+
+        public int getScrollableUnitIncrement(Rectangle r, int o, int d) {
+            return 16;
+        }
+
+        public int getScrollableBlockIncrement(Rectangle r, int o, int d) {
+            return 64;
+        }
+
+        public boolean getScrollableTracksViewportWidth() {
+            return true;
+        }
+
+        public boolean getScrollableTracksViewportHeight() {
+            return false;
+        }
     }
 
-    // ---------------------------------------------------------------- units
-    private String unit() { return (String) unitBox.getSelectedItem(); }
+    private String unit() {
+        return (String) unitBox.getSelectedItem();
+    }
 
-    /** The unit changed: relabel everything that shows a size and clear the old results (they were in the old unit). */
     private void applyUnit() {
         String u = unit();
         blocksLabel.setText("Memory blocks (" + u + ", in order):");
@@ -144,31 +153,46 @@ public class FragmentationPanel extends ModulePanel {
         clearResults();
     }
 
-    // ---------------------------------------------------------------- left column
     private JPanel inputPanel() {
         Theme.SkinPanel p = new Theme.SkinPanel("Blocks and Processes", "cards", false);
         p.body.setLayout(new GridBagLayout());
         GridBagConstraints c = gbc();
-        c.gridy = 0; c.gridx = 0; c.weightx = 0; p.body.add(blocksLabel, c);
-        c.gridy = 1; c.weightx = 1; p.body.add(blocks, c);
-        c.gridy = 2; c.weightx = 0; p.body.add(procsLabel, c);
-        c.gridy = 3; c.weightx = 1; p.body.add(procs, c);
+        c.gridy = 0;
+        c.gridx = 0;
+        c.weightx = 0;
+        p.body.add(blocksLabel, c);
+        c.gridy = 1;
+        c.weightx = 1;
+        p.body.add(blocks, c);
+        c.gridy = 2;
+        c.weightx = 0;
+        p.body.add(procsLabel, c);
+        c.gridy = 3;
+        c.weightx = 1;
+        p.body.add(procs, c);
         blocks.setToolTipText("Sizes separated by spaces or commas, e.g.  100 500 200 300 600");
         procs.setToolTipText("Sizes separated by spaces or commas, e.g.  212 417 112 426");
 
         JPanel counts = new JPanel(new GridLayout(3, 2, 6, 4));
         counts.setOpaque(false);
-        counts.add(Theme.label("How many blocks:", Theme.INK, 15f)); counts.add(blockCount);
-        counts.add(Theme.label("How many processes:", Theme.INK, 15f)); counts.add(procCount);
-        counts.add(maxLabel); counts.add(maxSize);
-        c.gridy = 4; c.insets = new Insets(10, 4, 3, 4); p.body.add(counts, c);
+        counts.add(Theme.label("How many blocks:", Theme.INK, 15f));
+        counts.add(blockCount);
+        counts.add(Theme.label("How many processes:", Theme.INK, 15f));
+        counts.add(procCount);
+        counts.add(maxLabel);
+        counts.add(maxSize);
+        c.gridy = 4;
+        c.insets = new Insets(10, 4, 3, 4);
+        p.body.add(counts, c);
         blockCount.setToolTipText("Randomize picks these three values itself and fills them in");
         procCount.setToolTipText("Randomize picks these three values itself and fills them in");
         maxSize.setToolTipText("Randomize picks these three values itself and fills them in");
 
-        JButton rnd = ModuleHeader.navyButton("Randomize", 150);
+        JButton rnd = ModuleHeader.withIcon(ModuleHeader.navyButton("Randomize", 150), "dice", Theme.CREAM);
         rnd.setToolTipText("Random number of blocks and processes, random largest size, random block and process sizes");
-        c.gridy = 5; c.insets = new Insets(6, 4, 3, 4); p.body.add(rnd, c);
+        c.gridy = 5;
+        c.insets = new Insets(6, 4, 3, 4);
+        p.body.add(rnd, c);
         rnd.addActionListener(e -> randomizeData());
         return p;
     }
@@ -176,16 +200,9 @@ public class FragmentationPanel extends ModulePanel {
     private JPanel comparePanel() {
         Theme.SkinPanel p = new Theme.SkinPanel("Compare Strategies", "diamond", false);
         p.body.setLayout(new BorderLayout(0, 8));
-        JButton all = ModuleHeader.navyButton("Compare All", 150);
-        all.setToolTipText("Run First, Best and Worst Fit on the same input, with the memory type chosen above");
-        JPanel top = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
-        top.setOpaque(false);
-        top.add(all);
-        p.body.add(top, BorderLayout.NORTH);
         JScrollPane sp = Theme.scroll(cmpTable, Theme.DEEP);
-        sp.setPreferredSize(new Dimension(200, 130));
+        sp.setPreferredSize(new Dimension(200, 150));
         p.body.add(sp, BorderLayout.CENTER);
-        all.addActionListener(e -> compareAll());
         return p;
     }
 
@@ -197,14 +214,16 @@ public class FragmentationPanel extends ModulePanel {
         return c;
     }
 
-    // ---------------------------------------------------------------- behaviour
-    @Override public String getTitle() { return "Fragmentation"; }
+    @Override
+    public String getTitle() {
+        return "Fragmentation";
+    }
 
-    /** Randomizes everything: number of blocks, number of processes, largest size, and every block and process size. */
-    @Override protected void randomizeData() {
-        int nb = 3 + Util.RNG.nextInt(6);                      // 3 .. 8 blocks
-        int np = 3 + Util.RNG.nextInt(6);                      // 3 .. 8 processes
-        int max = 100 * (2 + Util.RNG.nextInt(19));            // 200 .. 2000
+    @Override
+    protected void randomizeData() {
+        int nb = 3 + Util.RNG.nextInt(6);
+        int np = 3 + Util.RNG.nextInt(6);
+        int max = 100 * (2 + Util.RNG.nextInt(19));
         blockCount.setText(String.valueOf(nb));
         procCount.setText(String.valueOf(np));
         maxSize.setText(String.valueOf(max));
@@ -212,14 +231,15 @@ public class FragmentationPanel extends ModulePanel {
         int lo = Math.max(1, max / 10);
         StringBuilder b = new StringBuilder(), p = new StringBuilder();
         for (int i = 0; i < nb; i++) b.append(lo + Util.RNG.nextInt(max - lo + 1)).append(' ');
-        int pmax = Math.max(lo, max * 3 / 4);                  // processes are a bit smaller, so most (not all) fit
+        int pmax = Math.max(lo, max * 3 / 4);
         for (int i = 0; i < np; i++) p.append(lo + Util.RNG.nextInt(pmax - lo + 1)).append(' ');
         blocks.setText(b.toString().trim());
         procs.setText(p.toString().trim());
         clearResults();
     }
 
-    @Override protected void runSimulation() {
+    @Override
+    protected void runSimulation() {
         try {
             int[] b = parseSizes(blocks.getText(), "Memory block", MAX_BLOCKS), p = parseSizes(procs.getText(), "Process", MAX_PROCESSES);
             MemoryAllocator.Strategy s = (MemoryAllocator.Strategy) strategy.getSelectedItem();
@@ -235,6 +255,7 @@ public class FragmentationPanel extends ModulePanel {
             diagram.show(r, p);
             internalValue.setText(r.internalFragmentation + " " + unit());
             externalValue.setText(r.externalFragmentation + " " + unit());
+            compareAll();
         } catch (IllegalArgumentException ex) {
             Util.error(this, ex.getMessage());
         }
@@ -255,16 +276,17 @@ public class FragmentationPanel extends ModulePanel {
         }
     }
 
-    /** "100 500, 200" -> [100, 500, 200] with friendly errors. */
     private int[] parseSizes(String text, String what, int max) {
         String s = text == null ? "" : text.trim();
         if (s.isEmpty()) throw new IllegalArgumentException("Type at least one " + what.toLowerCase() + " size.");
         String[] tok = s.split("[\\s,;]+");
-        if (tok.length > max) throw new IllegalArgumentException("At most " + max + " " + what.toLowerCase() + "s are allowed (got " + tok.length + ").");
+        if (tok.length > max)
+            throw new IllegalArgumentException("At most " + max + " " + what.toLowerCase() + "s are allowed (got " + tok.length + ").");
         int[] v = new int[tok.length];
         for (int i = 0; i < tok.length; i++) {
             v[i] = Util.parseInt(tok[i], what + " " + (i + 1), 1);
-            if (v[i] > MAX_SIZE) throw new IllegalArgumentException(what + " " + (i + 1) + " is too large (at most " + MAX_SIZE + " " + unit() + ").");
+            if (v[i] > MAX_SIZE)
+                throw new IllegalArgumentException(what + " " + (i + 1) + " is too large (at most " + MAX_SIZE + " " + unit() + ").");
         }
         return v;
     }
@@ -277,10 +299,9 @@ public class FragmentationPanel extends ModulePanel {
         diagram.clear();
     }
 
-    // ---------------------------------------------------------------- small builders
-    /** Colours the Status column: green when placed, red when the process had to wait. */
     private static class StatusRenderer extends DefaultTableCellRenderer {
-        @Override public Component getTableCellRendererComponent(JTable tb, Object v, boolean sel, boolean foc, int r, int c) {
+        @Override
+        public Component getTableCellRendererComponent(JTable tb, Object v, boolean sel, boolean foc, int r, int c) {
             super.getTableCellRendererComponent(tb, v, sel, false, r, c);
             setHorizontalAlignment(SwingConstants.CENTER);
             setFont(Theme.heading(12f));
@@ -319,9 +340,11 @@ public class FragmentationPanel extends ModulePanel {
 
     private static JTable tipTable(DefaultTableModel model, String[] tips, boolean dark) {
         JTable t = new JTable(model) {
-            @Override protected JTableHeader createDefaultTableHeader() {
+            @Override
+            protected JTableHeader createDefaultTableHeader() {
                 return new JTableHeader(columnModel) {
-                    @Override public String getToolTipText(MouseEvent e) {
+                    @Override
+                    public String getToolTipText(MouseEvent e) {
                         int col = columnModel.getColumnIndexAtX(e.getX());
                         if (col < 0) return null;
                         int mi = columnModel.getColumn(col).getModelIndex();

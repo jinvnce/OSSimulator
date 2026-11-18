@@ -1,18 +1,41 @@
 package replacement;
 
 import paging.PagingResult;
-import java.util.*;
 
+import java.util.*;
 
 public abstract class PageReplacement {
     protected int[] frames;
     protected int[] ref;
 
     public abstract String getName();
+
     protected abstract void init(int numFrames);
+
     protected abstract int chooseVictim(int now);
-    protected void onHit(int slot, int now) { }
-    protected void onLoad(int slot, int now) { }
+
+    protected void onHit(int slot, int now) {
+    }
+
+    protected void onLoad(int slot, int now) {
+    }
+
+    protected void beforeStep(int now) {
+    }
+
+    public final List<int[]> useLog = new ArrayList<>();
+    public final List<Integer> ptrLog = new ArrayList<>();
+    public final List<int[]> framesBefore = new ArrayList<>();
+    public final List<int[]> useBefore = new ArrayList<>();
+    public final List<Integer> ptrBefore = new ArrayList<>();
+
+    protected int[] useBits() {
+        return null;
+    }
+
+    protected int pointer() {
+        return -1;
+    }
 
     public final PagingResult simulate(int[] reference, int numFrames) {
         if (numFrames < 1) throw new IllegalArgumentException("Number of frames must be at least 1.");
@@ -20,10 +43,25 @@ public abstract class PageReplacement {
         frames = new int[numFrames];
         Arrays.fill(frames, -1);
         init(numFrames);
+        useLog.clear();
+        ptrLog.clear();
+        framesBefore.clear();
+        useBefore.clear();
+        ptrBefore.clear();
         PagingResult result = new PagingResult();
         for (int i = 0; i < ref.length; i++) {
+            beforeStep(i);
+            framesBefore.add(frames.clone());
+            int[] ub = useBits();
+            useBefore.add(ub == null ? null : ub.clone());
+            ptrBefore.add(pointer());
+
             int slot = -1;
-            for (int k = 0; k < numFrames; k++) if (frames[k] == ref[i]) { slot = k; break; }
+            for (int k = 0; k < numFrames; k++)
+                if (frames[k] == ref[i]) {
+                    slot = k;
+                    break;
+                }
             boolean hit = slot >= 0;
             if (hit) onHit(slot, i);
             else {
@@ -33,10 +71,16 @@ public abstract class PageReplacement {
                 onLoad(slot, i);
             }
             result.addStep(ref[i], frames, hit);
+            int[] u = useBits();
+            useLog.add(u == null ? null : u.clone());
+            ptrLog.add(pointer());
         }
         result.buildPageTable(frames);
         return result;
     }
 
-    @Override public String toString() { return getName(); }
+    @Override
+    public String toString() {
+        return getName();
+    }
 }

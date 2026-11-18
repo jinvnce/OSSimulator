@@ -33,7 +33,6 @@ public class BankersAlgorithm {
     public int getProcessCount() {
         return allocation.length;
     }
-
     public int[] getNeed(int i) {
         return need[i].clone();
     }
@@ -58,9 +57,9 @@ public class BankersAlgorithm {
             for (int i = 0; i < p; i++) {
                 if (finished[i]) continue;
                 int[] before = work.clone();
-                boolean ok = fits(need[i], work);       // Finish[i] = false and Need[i] <= Work
+                boolean ok = fits(need[i], work);
                 if (ok) {
-                    for (int j = 0; j < r; j++) work[j] += allocation[i][j];   // Work = Work + Allocation[i]
+                    for (int j = 0; j < r; j++) work[j] += allocation[i][j];
                     finished[i] = true;
                     progress = true;
                     result.sequence.add(i);

@@ -4,9 +4,18 @@ import java.util.*;
 
 
 public class SRTScheduler extends Scheduler {
-    @Override public String getName() { return "SRT"; }
-    @Override public boolean isPreemptive() { return true; }
-    @Override public String getDescription() {
+    @Override
+    public String getName() {
+        return "SRT";
+    }
+
+    @Override
+    public boolean isPreemptive() {
+        return true;
+    }
+
+    @Override
+    public String getDescription() {
         return "Shortest Remaining Time: the job with the least time left runs. A new job that needs less time than the running job's remaining time interrupts it.";
     }
 
@@ -34,7 +43,11 @@ public class SRTScheduler extends Scheduler {
             addSegment(timeline, best, t, t + run);
             t += run;
             remaining.put(best, remaining.get(best) - run);
-            if (remaining.get(best) == 0) { best.setCompletion(t); ready.remove(best); finished++; }
+            if (remaining.get(best) == 0) {
+                best.setCompletion(t);
+                ready.remove(best);
+                finished++;
+            }
         }
     }
 

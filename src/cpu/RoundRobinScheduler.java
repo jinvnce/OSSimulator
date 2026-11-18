@@ -5,17 +5,31 @@ import java.util.*;
 public class RoundRobinScheduler extends Scheduler {
     private long quantum;
 
-    public RoundRobinScheduler(long quantum) { setQuantum(quantum); }
+    public RoundRobinScheduler(long quantum) {
+        setQuantum(quantum);
+    }
 
-    public long getQuantum() { return quantum; }
+    public long getQuantum() {
+        return quantum;
+    }
+
     public void setQuantum(long quantum) {
         if (quantum < 1) throw new IllegalArgumentException("Time quantum must be greater than 0.");
         this.quantum = quantum;
     }
 
-    @Override public String getName() { return "Round Robin"; }
-    @Override public boolean isPreemptive() { return true; }
-    @Override public String getDescription() {
+    @Override
+    public String getName() {
+        return "Round Robin";
+    }
+
+    @Override
+    public boolean isPreemptive() {
+        return true;
+    }
+
+    @Override
+    public String getDescription() {
         return "Round Robin: each job runs for at most one time quantum, then goes to the back of the line so every job gets a turn.";
     }
 
@@ -40,9 +54,12 @@ public class RoundRobinScheduler extends Scheduler {
             addSegment(timeline, p, t, t + slice);
             t += slice;
             remaining.put(p, remaining.get(p) - slice);
-            while (next < n && sorted.get(next).getArrival() <= t) queue.add(sorted.get(next++)); // arrivals join first
+            while (next < n && sorted.get(next).getArrival() <= t) queue.add(sorted.get(next++));
             if (remaining.get(p) > 0) queue.add(p);
-            else { p.setCompletion(t); finished++; }
+            else {
+                p.setCompletion(t);
+                finished++;
+            }
         }
     }
 }
