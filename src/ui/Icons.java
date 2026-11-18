@@ -105,6 +105,10 @@ public final class Icons {
                         g.drawLine(2, 14, 14, 14);
                         g.drawPolyline(new int[]{2, 6, 9, 14}, new int[]{11, 7, 9, 3}, 4);
                         break;
+                    case "home":
+                        g.drawPolyline(new int[]{1, 8, 15}, new int[]{8, 1, 8}, 3);   // roof
+                        g.drawPolyline(new int[]{3, 3, 13, 13}, new int[]{7, 14, 14, 7}, 4);   // walls
+                        break;
                     default:
                         break;
                 }

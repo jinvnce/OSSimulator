@@ -4,21 +4,50 @@ import banker.BankerPanel;
 import cpu.CpuPanel;
 import disk.DiskPanel;
 import fragmentation.FragmentationPanel;
-import ui.ModulePanel;
 import multiprogramming.MultiprogrammingPanel;
 import paging.PagingPanel;
 import replacement.ReplacementPanel;
 import segmentation.SegmentationPanel;
+import ui.HomePanel;
+import ui.Icons;
+import ui.ModulePanel;
 import ui.Theme;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.ActionEvent;
+import java.awt.event.InputEvent;
+import java.awt.event.KeyEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class OSSimulator extends JFrame {
     private static final String[] ICONS = {"spade", "diamond", "club", "heart", "cards", "hourglass", "memory", "gear"};
+
+    private static final String[] GROUPS = {
+            "Processes & CPU", "Processes & CPU", "Memory management", "Memory management",
+            "Memory management", "Memory management", "Processes & CPU", "Storage"};
+    private static final String[] DESCRIPTIONS = {
+            "Compare scheduling algorithms and watch the timeline unfold.",
+            "Check whether a state is safe and find a safe sequence.",
+            "Translate logical addresses into physical frames.",
+            "Run page replacement policies and count the page faults.",
+            "Map segment and offset addresses, and catch limit errors.",
+            "See where memory gets wasted with different fit strategies.",
+            "Explore CPU utilization as the degree of multiprogramming grows.",
+            "Compare disk head scheduling and total head movement."};
+
+    private static final String HOME = "__home__";
+
+    private final CardLayout cards = new CardLayout();
+    private final JPanel content = new JPanel(cards);
+    private final Map<String, Theme.SkinButton> nav = new LinkedHashMap<>();
+    private JPanel west;
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> new OSSimulator().setVisible(true));
@@ -36,10 +65,10 @@ public class OSSimulator extends JFrame {
                 Theme.paintBackground(g, this);
             }
         };
-
-        CardLayout cards = new CardLayout();
-        JPanel content = new JPanel(cards);
         content.setOpaque(false);
+
+        int mask = Toolkit.getDefaultToolkit().getMenuShortcutKeyMaskEx();
+        String mod = InputEvent.getModifiersExText(mask);
 
         JPanel side = new JPanel();
         side.setLayout(new BoxLayout(side, BoxLayout.Y_AXIS));
@@ -49,10 +78,27 @@ public class OSSimulator extends JFrame {
         side.add(logo());
         side.add(Box.createVerticalStrut(14));
 
-        List<Theme.SkinButton> buttons = new ArrayList<>();
+        Theme.SkinButton homeBtn = new Theme.SkinButton("Home", "navy");
+        homeBtn.setIcon(Icons.glyph("home", Theme.CREAM));
+        homeBtn.setIconTextGap(11);
+        homeBtn.setHorizontalAlignment(SwingConstants.LEFT);
+        homeBtn.setMargin(new Insets(4, 19, 8, 10));
+        homeBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
+        homeBtn.setPreferredSize(new Dimension(226, 50));
+        homeBtn.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
+        homeBtn.setToolTipText("Main menu  (" + mod + "+0)");
+        homeBtn.addActionListener(e -> show(HOME));
+        nav.put(HOME, homeBtn);
+        side.add(homeBtn);
+        side.add(Box.createVerticalStrut(14));
+
+        List<HomePanel.Entry> entries = new ArrayList<>();
         for (int i = 0; i < modules.length; i++) {
+            final int index = i;
             ModulePanel m = modules[i];
-            content.add(m, m.getTitle());
+            String key = m.getTitle();
+            content.add(m, key);
+
             Theme.SkinButton b = new Theme.SkinButton(m.getTitle(), "navy");
             b.setIcon(Theme.icon(ICONS[i % ICONS.length], 22, Theme.CREAM));
             b.setHorizontalAlignment(SwingConstants.LEFT);
@@ -60,22 +106,45 @@ public class OSSimulator extends JFrame {
             b.setAlignmentX(Component.LEFT_ALIGNMENT);
             b.setPreferredSize(new Dimension(226, 50));
             b.setMaximumSize(new Dimension(Integer.MAX_VALUE, 50));
-            b.addActionListener(e -> {
-                for (Theme.SkinButton o : buttons) o.setKind(o == b ? "red" : "navy");
-                cards.show(content, m.getTitle());
-            });
-            buttons.add(b);
+            b.setToolTipText(mod + "+" + (index + 1));
+            b.addActionListener(e -> show(key));
+            nav.put(key, b);
             side.add(b);
             side.add(Box.createVerticalStrut(6));
+
+            entries.add(new HomePanel.Entry(m.getTitle(), DESCRIPTIONS[i], ICONS[i % ICONS.length], GROUPS[i],
+                    mod + "+" + (index + 1), () -> show(key)));
+
+            KeyStroke ks = KeyStroke.getKeyStroke(KeyEvent.VK_1 + i, mask);
+            root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(ks, "go" + i);
+            root.getActionMap().put("go" + i, new AbstractAction() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    show(key);
+                }
+            });
         }
         side.add(Box.createVerticalGlue());
-        buttons.get(0).setKind("red");
+
+        root.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(KeyEvent.VK_0, mask), "home");
+        root.getActionMap().put("home", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                show(HOME);
+            }
+        });
+
+        String first = modules[0].getTitle();
+        HomePanel home = new HomePanel(Theme.image("logos/os_simulator_jester_card_logo.png"), entries,
+                "Quick start: " + first, () -> show(first),
+                "Tip: " + mod + "+1 to " + mod + "+" + modules.length + " jump between modules, " + mod + "+0 returns here.");
+        content.add(home, HOME);
 
         JPanel divider = new JPanel();
         divider.setBackground(new Color(0x050D18));
         divider.setPreferredSize(new Dimension(2, 10));
 
-        JPanel west = new JPanel(new BorderLayout());
+        west = new JPanel(new BorderLayout());
         west.setOpaque(false);
         west.add(side, BorderLayout.CENTER);
         west.add(divider, BorderLayout.EAST);
@@ -86,6 +155,15 @@ public class OSSimulator extends JFrame {
         setSize(1180, 760);
         setMinimumSize(new Dimension(980, 640));
         setLocationRelativeTo(null);
+
+        show(HOME);
+    }
+
+    private void show(String key) {
+        cards.show(content, key);
+        west.setVisible(!HOME.equals(key));
+        for (Map.Entry<String, Theme.SkinButton> e : nav.entrySet())
+            e.getValue().setKind(e.getKey().equals(key) ? "red" : "navy");
     }
 
     private JComponent logo() {
@@ -99,6 +177,15 @@ public class OSSimulator extends JFrame {
         name.setForeground(Theme.CREAM);
         p.add(name);
         p.setMaximumSize(new Dimension(Integer.MAX_VALUE, 66));
+
+        p.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        p.setToolTipText("Main menu");
+        p.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mouseClicked(MouseEvent e) {
+                show(HOME);
+            }
+        });
         return p;
     }
 }
