@@ -119,6 +119,7 @@ class ElevatorDisk extends DiskScheduler {
     }
 }
 
+// Replace the existing CScanDisk class in DiskScheduler.java with this one.
 class CScanDisk extends DiskScheduler {
     public String getName() {
         return "C-SCAN";
@@ -131,22 +132,28 @@ class CScanDisk extends DiskScheduler {
             else hi.add(c);
 
         boolean goUp = determineDirection(head, lo, hi);
-
-        List<Integer> loDesc = new ArrayList<>(lo);
-        Collections.reverse(loDesc);
-        List<Integer> hiDesc = new ArrayList<>(hi);
-        Collections.reverse(hiDesc);
         List<Integer> out = new ArrayList<>();
 
         if (goUp) {
-            out.addAll(hi);
-            out.add(max);
-            out.addAll(lo);
+            for (int c : hi) addStop(out, c);
+            addStop(out, max);
+            addStop(out, 0);
+            for (int c : lo) addStop(out, c);
         } else {
-            out.addAll(loDesc);
-            out.add(max);
-            out.addAll(hiDesc);
+            List<Integer> loDesc = new ArrayList<>(lo);
+            Collections.reverse(loDesc);
+            List<Integer> hiDesc = new ArrayList<>(hi);
+            Collections.reverse(hiDesc);
+
+            for (int c : loDesc) addStop(out, c);
+            addStop(out, 0);
+            addStop(out, max);
+            for (int c : hiDesc) addStop(out, c);
         }
         return out;
+    }
+
+    private static void addStop(List<Integer> out, int cyl) {
+        if (out.isEmpty() || out.get(out.size() - 1) != cyl) out.add(cyl);
     }
 }
